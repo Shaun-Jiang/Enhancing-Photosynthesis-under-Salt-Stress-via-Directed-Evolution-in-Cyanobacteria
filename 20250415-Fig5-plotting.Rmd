@@ -1,0 +1,775 @@
+---
+title: "20240501-Fig5-plotting"
+author: "Zhenxiong Jiang"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(ggplot2)
+library(ggthemes)
+library(tidyr)
+library(dplyr)
+library(ggpubr)
+library(pracma)
+library(gridExtra)
+library(plotrix)
+library(ggrepel)
+```
+
+# a.Visualize the growth curve of OE5, OE9 and PCC7942 under varying light conditions ranging from 100uE, 300uE, 1500uE. ❗️
+Load data:
+```{r}
+varying.light.growth <- read.csv("./OE-growth/20240425-20240430-OE5-OE9-100uE-300uE-1500uE.csv")
+varying.light.growth.stat <- read.csv("./OE-growth/20240618-varying-growth-stat.csv")
+```
+Preliminary Plotting:
+```{r}
+ggplot(varying.light.growth[(varying.light.growth$Light==100)&(varying.light.growth$Strain!="PCC7942"),],aes(x=Time/1440,y=OD730,color=interaction(Strain,Batch)))+
+  geom_point()+
+  xlab("Time/h")+
+  ylab(bquote(OD["730"]))
+ggplot(varying.light.growth[(varying.light.growth$Light==300)&(varying.light.growth$Strain!="PCC7942"),],aes(x=Time/1440,y=OD730,color=Strain))+
+  geom_point()+
+  xlab("Time/h")+
+  ylab(bquote(OD["730"]))
+ggplot(varying.light.growth[(varying.light.growth$Light==1500)&(varying.light.growth$Strain!="PCC7942"),],aes(x=Time/1440,y=OD730,color=Strain))+
+  geom_point()+
+  xlab("Time/h")+
+  ylab(bquote(OD["730"]))
+```
+T test:
+```{r}
+t.test(varying.light.growth[(varying.light.growth$Strain=="WT")&(varying.light.growth$Light==100)&(varying.light.growth$Time==72000),]$OD730,varying.light.growth[(varying.light.growth$Strain=="L353F")&(varying.light.growth$Light==100)&(varying.light.growth$Time==72000),]$OD730)
+t.test(varying.light.growth[(varying.light.growth$Strain=="WT")&(varying.light.growth$Light==300)&(varying.light.growth$Time==72000),]$OD730,varying.light.growth[(varying.light.growth$Strain=="L353F")&(varying.light.growth$Light==300)&(varying.light.growth$Time==72000),]$OD730)
+t.test(varying.light.growth[(varying.light.growth$Strain=="WT")&(varying.light.growth$Light==1500)&(varying.light.growth$Time==72000),]$OD730,varying.light.growth[(varying.light.growth$Strain=="L353F")&(varying.light.growth$Light==1500)&(varying.light.growth$Time==72000),]$OD730)
+```
+Plotting:
+```{r}
+varying.light.growth.plot <- 
+ggplot(varying.light.growth.stat[varying.light.growth.stat$Time<30*3600,]) + 
+  theme_bw(base_line_size = 0.3) +
+  geom_point(aes(x=Time/3600, y=WT.100uE.mean),size=0.05, color="#f0c9c4", fill="#f0c9c4") + 
+  geom_ribbon(aes(x=Time/3600, y=WT.100uE.mean, ymin=WT.100uE.mean-WT.100uE.std, ymax=WT.100uE.mean+WT.100uE.std), alpha=0.5, fill="#f0c9c4") +
+  geom_point(aes(x=Time/3600, y=L353F.100uE.mean),size=0.05, color="#CAD4E7", fill="#CAD4E7") + 
+  geom_ribbon(aes(x=Time/3600, y=L353F.100uE.mean, ymin=L353F.100uE.mean-L353F.100uE.std, ymax=L353F.100uE.mean+L353F.100uE.std), alpha=0.5, fill="#CAD4E7") +
+  geom_point(aes(x=Time/3600, y=WT.300uE.mean),size=0.05, color="#E99C93", fill="#E99C93") + 
+  geom_ribbon(aes(x=Time/3600, y=WT.300uE.mean, ymin=WT.300uE.mean-WT.300uE.std, ymax=WT.300uE.mean+WT.300uE.std), alpha=0.5, fill="#E99C93") +
+  geom_point(aes(x=Time/3600, y=L353F.300uE.mean),size=0.05, color="#9fb4db", fill="#9fb4db") + 
+  geom_ribbon(aes(x=Time/3600, y=L353F.300uE.mean, ymin=L353F.300uE.mean-L353F.300uE.std, ymax=L353F.300uE.mean+L353F.300uE.std), alpha=0.5, fill="#9fb4db") +
+  geom_point(aes(x=Time/3600, y=WT.1500uE.mean),size=0.05, color="#DA412F", fill="#DA412F") + 
+  geom_ribbon(aes(x=Time/3600, y=WT.1500uE.mean, ymin=WT.1500uE.mean-WT.1500uE.std, ymax=WT.1500uE.mean+WT.1500uE.std), alpha=0.5, fill="#DA412F") +
+  geom_point(aes(x=Time/3600, y=L353F.1500uE.mean),size=0.05, color="#6789C9", fill="#6789C9") + 
+  geom_ribbon(aes(x=Time/3600, y=L353F.1500uE.mean, ymin=L353F.1500uE.mean-L353F.1500uE.std, ymax=L353F.1500uE.mean+L353F.1500uE.std), alpha=0.5, fill="#6789C9") +
+  ylab(bquote(bold(OD[bold("730")])))+
+  xlab("Time/h")+
+  theme(legend.position = "none",
+        panel.grid.major = element_line(size=0.1, linetype="blank",color="white"),
+        panel.grid.minor = element_line(size=0.1, linetype="blank",color="white"),
+        axis.text=element_text(size=20/ .pt),
+        axis.title=element_text(size=20/ .pt,face="bold"),
+        axis.ticks = element_line(size=0.1))+
+  geom_segment(aes(x=20.3,xend=20.3,y=0.325,yend=0.38))+
+  annotate("text", x = 21, y = 0.35, 
+           label = "ns",
+           size = 5 / .pt, color = "#22292F")+
+  geom_segment(aes(x=20.8,xend=20.8,y=0.34,yend=0.24))+
+  annotate("text", x = 21.5, y = 0.29, 
+           label = "ns",
+           size = 5 / .pt, color = "#22292F")+
+  geom_segment(aes(x=20.3,xend=20.3,y=0.12,yend=0.15))+
+  annotate("text", x = 21, y = 0.135, 
+           label = "ns",
+           size = 5 / .pt, color = "#22292F")
+  
+ggsave(filename = file.path("./image","20240618-varying.light.growth.pdf"),plot = varying.light.growth.plot, device = "pdf", width = 8.5, height = 6, units = "cm")
+```
+
+# b.Visualize the growth curve of OE5 and OE9 under varying salinity stress and under 300uE light. ✅
+Loading:
+```{r}
+varying.salinity.growth <- read.csv("./OE-growth/20240618-varying-salinity-cleaned-data.csv")
+varying.salinity.growth.stat <- read.csv("./OE-growth/20240618-varying-salinity-cleaned-stat.csv")
+```
+t test:
+```{r}
+# 0mM coparison 
+t.test(varying.salinity.growth[(varying.salinity.growth$Strain=="WT")&(varying.salinity.growth$Salinity==0)&(varying.salinity.growth$Time==30*3600),]$OD730,varying.salinity.growth[(varying.salinity.growth$Strain=="L353F")&(varying.salinity.growth$Salinity==0)&(varying.salinity.growth$Time==30*3600),]$OD730)
+# 150mM coparison 
+t.test(varying.salinity.growth[(varying.salinity.growth$Strain=="WT")&(varying.salinity.growth$Salinity==150)&(varying.salinity.growth$Time==30*3600),]$OD730,varying.salinity.growth[(varying.salinity.growth$Strain=="L353F")&(varying.salinity.growth$Salinity==150)&(varying.salinity.growth$Time==30*3600),]$OD730)
+# 300mM coparison 
+t.test(varying.salinity.growth[(varying.salinity.growth$Strain=="WT")&(varying.salinity.growth$Salinity==300)&(varying.salinity.growth$Time==30*3600),]$OD730,varying.salinity.growth[(varying.salinity.growth$Strain=="L353F")&(varying.salinity.growth$Salinity==300)&(varying.salinity.growth$Time==30*3600),]$OD730)
+```
+2024/07/23: Revised Plotting
+```{r}
+varying.salinity.growth.plot <- 
+ggplot(varying.salinity.growth.stat[varying.salinity.growth.stat$Time<30*3600,]) + 
+  theme_classic() +
+  geom_point(aes(x=Time/3600, y=WT.0mM.mean),size=0.05, color="#f4dfb1", fill="#f4dfb1") + 
+  geom_ribbon(aes(x=Time/3600, y=WT.0mM.mean, ymin=WT.0mM.mean-WT.0mM.std, ymax=WT.0mM.mean+WT.0mM.std), alpha=0.5, fill="#f4dfb1") +
+  geom_point(aes(x=Time/3600, y=L353F.0mM.mean),size=0.05, color="#c0d9b2", fill="#c0d9b2") + 
+  geom_ribbon(aes(x=Time/3600, y=L353F.0mM.mean, ymin=L353F.0mM.mean-L353F.0mM.std, ymax=L353F.0mM.mean+L353F.0mM.std), alpha=0.5, fill="#c0d9b2") +
+  geom_point(aes(x=Time/3600, y=WT.150mM.mean),size=0.05, color="#F2D086", fill="#F2D086") + 
+  geom_ribbon(aes(x=Time/3600, y=WT.150mM.mean, ymin=WT.150mM.mean-WT.150mM.std, ymax=WT.150mM.mean+WT.150mM.std), alpha=0.5, fill="#F2D086") +
+  geom_point(aes(x=Time/3600, y=L353F.150mM.mean),size=0.05, color="#95BE7E", fill="#95BE7E") + 
+  geom_ribbon(aes(x=Time/3600, y=L353F.150mM.mean, ymin=L353F.150mM.mean-L353F.150mM.std, ymax=L353F.150mM.mean+L353F.150mM.std), alpha=0.5, fill="#95BE7E") +
+  geom_point(aes(x=Time/3600, y=WT.300mM.mean),size=0.05, color="#e4a41a", fill="#e4a41a") + 
+  geom_ribbon(aes(x=Time/3600, y=WT.300mM.mean, ymin=WT.300mM.mean-WT.300mM.std, ymax=WT.300mM.mean+WT.300mM.std), alpha=0.5, fill="#e4a41a") +
+  geom_point(aes(x=Time/3600, y=L353F.300mM.mean),size=0.05, color="#528735", fill="#528735") + 
+  geom_ribbon(aes(x=Time/3600, y=L353F.300mM.mean, ymin=L353F.300mM.mean-L353F.300mM.std, ymax=L353F.300mM.mean+L353F.300mM.std), alpha=0.5, fill="#528735") +
+  ylab(bquote(OD[bold("730")]))+
+  xlab("Time (h)")+
+  theme(legend.position = "none",
+        panel.grid.major = element_line(size=0.1, linetype="blank",color="white"),
+        panel.grid.minor = element_line(size=0.1, linetype="blank",color="white"),
+        axis.text=element_text(size=20/ .pt),
+        axis.title=element_text(size=20/ .pt),
+        axis.ticks = element_line(size=0.1))+
+  geom_segment(aes(x=30.1,xend=30.1,y=0.5,yend=0.6))+
+  annotate("text", x = 26.5, y = 0.55, 
+           label = "p=0.085",
+           size = 10 / .pt, color = "#22292F")+
+  annotate("text", x = 31.5, y = 0.55, 
+           label = "0mM",
+           size = 5 / .pt, color = "#22292F")+
+  geom_segment(aes(x=30.1,xend=30.1,y=0.3,yend=0.43))+
+  annotate("text", x = 29.5, y = 0.35, 
+           label = "*",
+           size = 16 / .pt, color = "#22292F")+
+  annotate("text", x = 32, y = 0.35, 
+           label = "150mM",
+           size = 5 / .pt, color = "#22292F")+
+  geom_segment(aes(x=30.1,xend=30.1,y=0.09,yend=0.21))+
+  annotate("text", x = 29.5, y = 0.13, 
+           label = "*",
+           size = 16 / .pt, color = "#22292F")+
+  annotate("text", x = 32, y = 0.13, 
+           label = "300mM",
+           size = 5 / .pt, color = "#22292F")
+ggsave(filename = file.path("./image","20241127-revised-Fig5a.pdf"),plot = varying.salinity.growth.plot, device = "pdf", width = 8.5, height = 6, units = "cm")
+```
+
+# c.Visualize the pigment content change by overexpressing mutated psbA1 (L353F) under varying light condition. ✅
+All samples collected after 24h growth under 100, 300, 1500uE light intensity. OD730 was measured separately with BG11 as blank, mean of every sample was measured and subtracted from the mean of blank; absorbance scan from 300-700nm with step 2 was performed. BG11 blanks are included and averaged, which was used to subtract from raw readings of 300-700nm absorbance. ✅
+
+Load the data:
+```{r}
+spectrum.data <- read.csv("./OE-growth/20240430-compiled-OE5-OE9-100uE-300uE-1500uE-normalized-absorbance.csv") %>% mutate(Condition=factor(paste(Strain,paste(Light,"uE",sep=""),sep="-")))
+spectrum.data$Condition <- factor(spectrum.data$Condition,levels = c("psbA1-WT-100uE","psbA1-WT-300uE","psbA1-WT-1500uE","psbA1-L353F-100uE","psbA1-L353F-300uE","psbA1-L353F-1500uE"))
+```
+Plotting:
+```{r}
+pigment.abundance.plot <- 
+  ggplot(spectrum.data,mapping = aes(x=Wavelength,y=Absorbance,color=Condition))+
+  #geom_point()+
+  geom_xspline(size=0.05)+
+  scale_color_manual(values=c("#f0c9c4","#E99C93","#da412f","#CAD4E7","#9fb4db","#6789c9"),
+                     labels=c(expression(italic(psbA1)^{WT}*"-100uE"),
+                        expression(italic(psbA1)^{WT}*"-300uE"),
+                        expression(italic(psbA1)^{WT}*"-1500uE"),
+                        expression(italic(psbA1)^{L353F}*"-100uE"),
+                        expression(italic(psbA1)^{L353F}*"-300uE"),
+                        expression(italic(psbA1)^{L353F}*"-1500uE")
+                        ))+
+  theme_bw()+
+  ylab(bquote(bold("Absorbance A/A"["730"])))+
+  xlab("Wavelength / nm")+
+  theme(legend.position = c(0.70,0.81),
+        axis.text.x = element_text(size=14 / .pt, angle=0),
+        axis.text.y = element_text(size=14 / .pt, angle=0),
+        panel.grid.major = element_line(size=0, linetype="blank",color="white"),
+        panel.grid.minor = element_line(size=0, linetype="blank",color="white"),
+        axis.title=element_text(size=20/.pt,face="bold"),
+        legend.text = element_text(size = 14 / .pt),
+        legend.title = element_text(size = 0 / .pt),
+        legend.key.height = unit(0.45,"cm"),
+        legend.key.width = unit(0.3,"cm"),
+        legend.text.align = 0)+
+        guides(color = guide_legend(ncol = 2))
+
+ggsave(filename = file.path("./image","20240521-normalized-pigment levels.pdf"),plot = pigment.abundance.plot, device = "pdf", width = 8, height = 6, units = "cm")
+```
+```{r}
+#individual plot for 100uE
+ggplot(spectrum.data[spectrum.data$Light==100,],mapping = aes(x=Wavelength,y=Absorbance,color=Condition))+
+  #geom_point()+
+  geom_xspline(size=0.5)+
+  scale_color_manual(values=c("#f0c9c4","#CAD4E7"),
+                     labels=c(expression(italic(psbA1)^{WT}*"-100uE"),
+                              expression(italic(psbA1)^{L353F}*"-100uE")))+
+  theme_bw()+
+  ylab(bquote(bold("Absorbance A/A"["730"])))+
+  xlab("Wavelength / nm")+
+  theme(legend.position = c(0.86,0.93),
+        axis.text.x = element_text(size=24 / .pt, angle=0),
+        axis.text.y = element_text(size=24 / .pt, angle=0),
+        panel.grid.major = element_line(size=0, linetype="blank",color="white"),
+        panel.grid.minor = element_line(size=0, linetype="blank",color="white"),
+        axis.title=element_text(size=20/.pt,face="bold"),
+        legend.text = element_text(size = 20 / .pt),
+        legend.title = element_text(size = 0 / .pt),
+        legend.key.height = unit(0.3,"cm"),
+        legend.key.width = unit(0.3,"cm"),
+        legend.text.align = 0)+
+        guides(color = guide_legend(ncol = 1))
+#individual plot for 300uE
+ggplot(spectrum.data[spectrum.data$Light==300,],mapping = aes(x=Wavelength,y=Absorbance,color=Condition))+
+  #geom_point()+
+  geom_xspline(size=0.5)+
+  scale_color_manual(values=c("#E99C93","#9fb4db"),
+                     labels=c(expression(italic(psbA1)^{WT}*"-300uE"),
+                              expression(italic(psbA1)^{L353F}*"-300uE")
+                        ))+
+  theme_bw()+
+  ylab(bquote(bold("Absorbance A/A"["730"])))+
+  xlab("Wavelength / nm")+
+  theme(legend.position = c(0.86,0.93),
+        axis.text.x = element_text(size=24 / .pt, angle=0),
+        axis.text.y = element_text(size=24 / .pt, angle=0),
+        panel.grid.major = element_line(size=0, linetype="blank",color="white"),
+        panel.grid.minor = element_line(size=0, linetype="blank",color="white"),
+        axis.title=element_text(size=20/.pt,face="bold"),
+        legend.text = element_text(size = 20 / .pt),
+        legend.title = element_text(size = 0 / .pt),
+        legend.key.height = unit(0.3,"cm"),
+        legend.key.width = unit(0.3,"cm"),
+        legend.text.align = 0)+
+        guides(color = guide_legend(ncol = 1))
+#individual plot for 1500uE
+ggplot(spectrum.data[spectrum.data$Light==1500,],mapping = aes(x=Wavelength,y=Absorbance,color=Condition))+
+  #geom_point()+
+  geom_xspline(size=0.5)+
+  scale_color_manual(values=c("#da412f","#6789c9"),
+                     labels=c(expression(italic(psbA1)^{WT}*"-1500uE"),
+                              expression(italic(psbA1)^{L353F}*"-1500uE")))+
+  theme_bw()+
+  ylab(bquote(bold("Absorbance A/A"["730"])))+
+  xlab("Wavelength / nm")+
+  theme(legend.position = c(0.86,0.93),
+        axis.text.x = element_text(size=24 / .pt, angle=0),
+        axis.text.y = element_text(size=24 / .pt, angle=0),
+        panel.grid.major = element_line(size=0, linetype="blank",color="white"),
+        panel.grid.minor = element_line(size=0, linetype="blank",color="white"),
+        axis.title=element_text(size=20/.pt,face="bold"),
+        legend.text = element_text(size = 20 / .pt),
+        legend.title = element_text(size = 0 / .pt),
+        legend.key.height = unit(0.3,"cm"),
+        legend.key.width = unit(0.3,"cm"),
+        legend.text.align = 0)+
+        guides(color = guide_legend(ncol = 1))
+```
+Load pre-experiment data for varying salinity data under 300uE:
+```{r}
+varying.salinity.growth <- read.csv("./OE-growth/20240505-OE5-9-5-9-5-9-5-9-450-300-150-0mM-NaCl-300uE-growth.csv")
+ggplot(varying.salinity.growth[varying.salinity.growth$Salinity==450,],aes(x=Time/3600,y=OD730,color=Strain))+
+  geom_point()+
+  scale_color_manual(values = c("#6789C9","#DA412F"))+
+  xlab("Time/h")
+ggplot(varying.salinity.growth[varying.salinity.growth$Salinity==300,],aes(x=Time/3600,y=OD730,color=Strain))+
+  geom_point()+
+  scale_color_manual(values = c("#6789C9","#DA412F"))+
+  xlab("Time/h")
+ggplot(varying.salinity.growth[varying.salinity.growth$Salinity==150,],aes(x=Time/3600,y=OD730,color=Strain))+
+  geom_point()+
+  scale_color_manual(values = c("#6789C9","#DA412F"))+
+  xlab("Time/h")
+ggplot(varying.salinity.growth[varying.salinity.growth$Salinity==0,],aes(x=Time/3600,y=OD730,color=Strain))+
+  geom_point()+
+  scale_color_manual(values = c("#6789C9","#DA412F"))+
+  xlab("Time/h")
+```
+
+# d.Visualize the pigment content change by overexpressing mutated psbA1 (L353F) under varying salinity condition. ✅
+```{r}
+salt.spectrum.data <- read.csv("./OE-growth/20240529-compiled-OE5-OE9-300uE-0mM-150mM-300mM-NaCl-normalized-absorbance.csv") %>% mutate(Condition=factor(paste(Strain,paste(Salinity,"mM",sep=""),sep="-")))
+
+salt.spectrum.data$Condition <- factor(salt.spectrum.data$Condition,levels = c("psbA1-WT-0mM","psbA1-WT-150mM","psbA1-WT-300mM","psbA1-L353F-0mM","psbA1-L353F-150mM","psbA1-L353F-300mM"))
+```
+2024/07/23: Revised Plotting:
+```{r}
+pigment.abundance.plot2 <- 
+  ggplot(salt.spectrum.data[salt.spectrum.data$Replicate==1,],mapping = aes(x=Wavelength,y=Absorbance,color=Condition))+
+  geom_xspline(size=0.05)+
+  scale_color_manual(values=c("#f4dfb1","#F2D086","#e4a41a","#c0d9b2","#95BE7E","#528735"),
+                     labels=c(expression(italic(psbA1)^{WT}*"-0mM"),
+                        expression(italic(psbA1)^{WT}*"-150mM"),
+                        expression(italic(psbA1)^{WT}*"-300mM"),
+                        expression(italic(psbA1)^{L353F}*"-0mM"),
+                        expression(italic(psbA1)^{L353F}*"-150mM"),
+                        expression(italic(psbA1)^{L353F}*"-300mM")
+                        ))+
+  theme_classic()+
+  ylab(bquote("Absorbance A/A"["730"]))+
+  xlab("Wavelength (nm)")+
+  theme(legend.position = c(0.74,0.85),
+        #axis.text.x = element_text(size=14 / .pt, angle=0),
+        #axis.text.y = element_text(size=14 / .pt, angle=0),
+        axis.text=element_text(size=20/ .pt),
+        axis.title=element_text(size=20/ .pt),
+        panel.grid.major = element_line(size=0, linetype="blank",color="white"),
+        panel.grid.minor = element_line(size=0, linetype="blank",color="white"),
+        legend.text = element_text(size = 14 / .pt),
+        legend.title = element_text(size = 0 / .pt),
+        legend.key.height = unit(0.45,"cm"),
+        legend.key.width = unit(0.3,"cm"),
+        legend.text.align = 0)+
+        guides(color = guide_legend(ncol = 2))
+
+ggsave(filename = file.path("./image","20240725-revised-Fig5b.pdf"),plot = pigment.abundance.plot2, device = "pdf", width = 8.5, height = 6, units = "cm")
+```
+
+# e.Visualize the O2 evolution statistics of OE5 and OE9 under varying light condition from 100uE to 300uE to 1500uE. ✅
+```{r}
+OE5.OE9.light.compiled <- read.csv("./OE-growth/20240529-20240531-compiled-OE5-OE9-growth-under-varying-light.csv")
+
+OE5.OE9.light.compiled.stat <- OE5.OE9.light.compiled %>% mutate(condition=paste("Strain:",Strain,";", "Light:",Light,";","Induction.light:",induction.light,sep = "")) %>% group_by(condition) %>% summarise(norm.O2.evo.mean=mean(norm.rate.by.OD),norm.O2.evo.sd=sd(norm.rate.by.OD)) %>% mutate(Strain=ifelse(grepl("OE5",condition),"OE5","OE9")) %>% mutate(Light=ifelse(grepl("Light:100",condition),"100",ifelse(grepl("Light:300",condition),"300","1500"))) %>% mutate(Induction.light=ifelse(grepl("Induction.light:300",condition),"300",ifelse(grepl("Induction.light:100",condition),"100",ifelse(grepl("Induction.light:1500",condition),"1500","max"))))
+
+OE5.OE9.light.compiled.stat$Light <- factor(OE5.OE9.light.compiled.stat$Light,levels = c("100","300","1500"))
+```
+T test:
+```{r}
+#O2 evolution: 0mM, 100uE, 100uE
+t.test(OE5.OE9.light.compiled[(OE5.OE9.light.compiled$Light==100)&(OE5.OE9.light.compiled$induction.light=="100")&(OE5.OE9.light.compiled$Strain=="OE5"),]$norm.rate.by.OD,OE5.OE9.light.compiled[(OE5.OE9.light.compiled$Light==100)&(OE5.OE9.light.compiled$induction.light=="100")&(OE5.OE9.light.compiled$Strain=="OE9"),]$norm.rate.by.OD)
+#O2 evolution: 0mM, 100uE, max
+t.test(OE5.OE9.light.compiled[(OE5.OE9.light.compiled$Light==100)&(OE5.OE9.light.compiled$induction.light=="max")&(OE5.OE9.light.compiled$Strain=="OE5"),]$norm.rate.by.OD,OE5.OE9.light.compiled[(OE5.OE9.light.compiled$Light==100)&(OE5.OE9.light.compiled$induction.light=="max")&(OE5.OE9.light.compiled$Strain=="OE9"),]$norm.rate.by.OD)
+#O2 evolution: 0mM, 300uE, 300uE
+t.test(OE5.OE9.light.compiled[(OE5.OE9.light.compiled$Light==300)&(OE5.OE9.light.compiled$induction.light=="300")&(OE5.OE9.light.compiled$Strain=="OE5"),]$norm.rate.by.OD,OE5.OE9.light.compiled[(OE5.OE9.light.compiled$Light==300)&(OE5.OE9.light.compiled$induction.light=="300")&(OE5.OE9.light.compiled$Strain=="OE9"),]$norm.rate.by.OD)
+#O2 evolution: 0mM, 300uE, max
+t.test(OE5.OE9.light.compiled[(OE5.OE9.light.compiled$Light==300)&(OE5.OE9.light.compiled$induction.light=="max")&(OE5.OE9.light.compiled$Strain=="OE5"),]$norm.rate.by.OD,OE5.OE9.light.compiled[(OE5.OE9.light.compiled$Light==300)&(OE5.OE9.light.compiled$induction.light=="max")&(OE5.OE9.light.compiled$Strain=="OE9"),]$norm.rate.by.OD)
+#O2 evolution: 0mM, 1500uE, 1500uE
+t.test(OE5.OE9.light.compiled[(OE5.OE9.light.compiled$Light==1500)&(OE5.OE9.light.compiled$induction.light=="1500")&(OE5.OE9.light.compiled$Strain=="OE5"),]$norm.rate.by.OD,OE5.OE9.light.compiled[(OE5.OE9.light.compiled$Light==1500)&(OE5.OE9.light.compiled$induction.light=="1500")&(OE5.OE9.light.compiled$Strain=="OE9"),]$norm.rate.by.OD)
+#O2 evolution: 0mM, 1500uE, max
+t.test(OE5.OE9.light.compiled[(OE5.OE9.light.compiled$Light==1500)&(OE5.OE9.light.compiled$induction.light=="max")&(OE5.OE9.light.compiled$Strain=="OE5"),]$norm.rate.by.OD,OE5.OE9.light.compiled[(OE5.OE9.light.compiled$Light==1500)&(OE5.OE9.light.compiled$induction.light=="max")&(OE5.OE9.light.compiled$Strain=="OE9"),]$norm.rate.by.OD)
+```
+Plotting:
+```{r}
+normalized.O2.evo.varying.light <- 
+ggplot()+
+  geom_col(data = OE5.OE9.light.compiled.stat,mapping = aes(x=factor(Light),y=norm.O2.evo.mean,fill=interaction(Strain,Induction.light),width=0.5),position = "dodge")+
+  scale_fill_manual(values=c("#f0c9c4","#CAD4E7","#f0c9c4","#CAD4E7","#f0c9c4","#CAD4E7","#E99C93","#9fb4db"))+
+  geom_point(data=OE5.OE9.light.compiled,mapping = aes(x=factor(Light),y=norm.rate.by.OD,color=interaction(Strain,induction.light)),
+             position=position_jitterdodge(jitter.width = 0.2,dodge.width=0.5),
+             size=0.8)+
+  scale_color_manual(values=c("#DA412F","#6789C9","#DA412F","#6789C9","#DA412F","#6789C9","#DA412F","#6789C9"))+  
+  geom_errorbar(data = OE5.OE9.light.compiled.stat,mapping = aes(x=Light,ymin=norm.O2.evo.mean-norm.O2.evo.sd,ymax=norm.O2.evo.mean+norm.O2.evo.sd,color=interaction(Strain,Induction.light)),position = position_dodge(width = 0.5),width=0.3)+
+  #scale_color_manual(values=c("#E99C93","#9fb4db","#f0c9c4","#CAD4E7"))+
+  xlab(expression(bold(atop("Light (" * mu * "mol photons/m"^"2" * "/s)"))))+
+  ylab(expression(bold(atop("Normalized O"[2] * " evolution rate", "(nmol/mL/s/OD"[730] * ")"))))+
+  theme_bw()+
+  theme(plot.margin = unit(c(0,0.1,0.01,0),"cm"),
+        legend.position = "none",
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.title=element_text(size=20/.pt,face="bold"))+
+  geom_segment(aes(x=0.75,xend=1,y=18,yend=18))+
+  annotate("text", x = 0.875, y = 20, 
+           label = "*",
+           size = 16 / .pt, color = "#22292F")+
+  geom_segment(aes(x=1,xend=1.25,y=36,yend=36))+
+  annotate("text", x = 1.125, y = 38, 
+           label = "ns",
+           size = 6 / .pt, color = "#22292F")+
+  geom_segment(aes(x=1.75,xend=2,y=43,yend=43))+
+  annotate("text", x = 1.875, y = 45, 
+           label = "ns",
+           size = 6 / .pt, color = "#22292F")+
+  geom_segment(aes(x=2,xend=2.25,y=60,yend=60))+
+  annotate("text", x = 2.125, y = 62, 
+           label = "ns",
+           size = 6 / .pt, color = "#22292F")+
+  geom_segment(aes(x=2.75,xend=3,y=21,yend=21))+
+  annotate("text", x = 2.875, y = 23, 
+           label = "****",
+           size = 12 / .pt, color = "#22292F")+
+  geom_segment(aes(x=3,xend=3.25,y=30,yend=30))+
+  annotate("text", x = 3.125, y = 32, 
+           label = "ns",
+           size = 6 / .pt, color = "#22292F")
+
+ggsave(filename = file.path("./image","20240610-normalized-O2-evo-varying-light.pdf"),plot = normalized.O2.evo.varying.light, device = "pdf", width = 8.5, height = 6, units = "cm")
+```
+
+#f.Visualize the O2 evolution statistics of OE5 and OE9 under 300uE and varying salt concentration from 0mM to 150mM and 300mM. ✅
+```{r}
+OE5.OE9.salinity.compiled <- read.csv("./OE-growth/20240514-20240516-compiled-OE5-OE9-growth-under-salinity-300uE.csv")
+
+OE5.OE9.salinity.compiled.stat <- OE5.OE9.salinity.compiled %>% mutate(condition=paste("Strain:",Strain,";", "Salinity:",Salinity.mM,";","Induction light:",induction.light,sep = "")) %>% group_by(condition) %>% summarise(norm.O2.evo.mean=mean(norm.rate.by.OD),norm.O2.evo.sd=sd(norm.rate.by.OD)) %>% mutate(Strain=ifelse(grepl("OE5",condition),"OE5","OE9")) %>% mutate(Salinity=ifelse(grepl("Salinity:0",condition),"0",ifelse(grepl("Salinity:150",condition),"150","300"))) %>% mutate(Induction.light=ifelse(grepl("Induction light:300",condition),"300","max"))
+
+OE5.OE9.salinity.compiled.stat2 <- OE5.OE9.salinity.compiled %>% mutate(condition=paste("Strain:",Strain,";", "Salinity:",Salinity.mM,";","Induction light:",induction.light,sep = "")) %>% group_by(condition) %>% summarise(norm.O2.gen.mean=mean(norm.10min.O2.gen),norm.O2.gen.sd=sd(norm.10min.O2.gen)) %>% mutate(Strain=ifelse(grepl("OE5",condition),"OE5","OE9"))%>% mutate(Salinity=ifelse(grepl("Salinity:0",condition),"0",ifelse(grepl("Salinity:150",condition),"150","300")))%>% mutate(Induction.light=ifelse(grepl("Induction light:300",condition),"300","max"))
+```
+O2 evolution normalized by OD730:
+T test:
+```{r}
+#O2 evolution: 0mM, 300uE, 300uE
+t.test(OE5.OE9.salinity.compiled[(OE5.OE9.salinity.compiled$Salinity.mM==0)&(OE5.OE9.salinity.compiled$induction.light=="300")&(OE5.OE9.salinity.compiled$Strain=="OE5"),]$norm.rate.by.OD,OE5.OE9.salinity.compiled[(OE5.OE9.salinity.compiled$Salinity.mM==0)&(OE5.OE9.salinity.compiled$induction.light=="300")&(OE5.OE9.salinity.compiled$Strain=="OE9"),]$norm.rate.by.OD)
+#O2 evolution: 0mM, 300uE, max
+t.test(OE5.OE9.salinity.compiled[(OE5.OE9.salinity.compiled$Salinity.mM==0)&(OE5.OE9.salinity.compiled$induction.light=="max")&(OE5.OE9.salinity.compiled$Strain=="OE5"),]$norm.rate.by.OD,OE5.OE9.salinity.compiled[(OE5.OE9.salinity.compiled$Salinity.mM==0)&(OE5.OE9.salinity.compiled$induction.light=="max")&(OE5.OE9.salinity.compiled$Strain=="OE9"),]$norm.rate.by.OD)
+#O2 evolution: 150mM, 300uE, 300uE
+t.test(OE5.OE9.salinity.compiled[(OE5.OE9.salinity.compiled$Salinity.mM==150)&(OE5.OE9.salinity.compiled$induction.light=="300")&(OE5.OE9.salinity.compiled$Strain=="OE5"),]$norm.rate.by.OD,OE5.OE9.salinity.compiled[(OE5.OE9.salinity.compiled$Salinity.mM==150)&(OE5.OE9.salinity.compiled$induction.light=="300")&(OE5.OE9.salinity.compiled$Strain=="OE9"),]$norm.rate.by.OD)
+#O2 evolution: 150mM, 300uE, max
+t.test(OE5.OE9.salinity.compiled[(OE5.OE9.salinity.compiled$Salinity.mM==150)&(OE5.OE9.salinity.compiled$induction.light=="max")&(OE5.OE9.salinity.compiled$Strain=="OE5"),]$norm.rate.by.OD,OE5.OE9.salinity.compiled[(OE5.OE9.salinity.compiled$Salinity.mM==150)&(OE5.OE9.salinity.compiled$induction.light=="max")&(OE5.OE9.salinity.compiled$Strain=="OE9"),]$norm.rate.by.OD)
+#O2 evolution: 300mM, 300uE, 300uE
+t.test(OE5.OE9.salinity.compiled[(OE5.OE9.salinity.compiled$Salinity.mM==300)&(OE5.OE9.salinity.compiled$induction.light=="300")&(OE5.OE9.salinity.compiled$Strain=="OE5"),]$norm.rate.by.OD,OE5.OE9.salinity.compiled[(OE5.OE9.salinity.compiled$Salinity.mM==300)&(OE5.OE9.salinity.compiled$induction.light=="300")&(OE5.OE9.salinity.compiled$Strain=="OE9"),]$norm.rate.by.OD)
+#O2 evolution: 300mM, 300uE, max
+t.test(OE5.OE9.salinity.compiled[(OE5.OE9.salinity.compiled$Salinity.mM==300)&(OE5.OE9.salinity.compiled$induction.light=="max")&(OE5.OE9.salinity.compiled$Strain=="OE5"),]$norm.rate.by.OD,OE5.OE9.salinity.compiled[(OE5.OE9.salinity.compiled$Salinity.mM==300)&(OE5.OE9.salinity.compiled$induction.light=="max")&(OE5.OE9.salinity.compiled$Strain=="OE9"),]$norm.rate.by.OD)
+
+```
+Plotting:
+Individual comparison:
+```{r}
+panel1 <- ggplot()+
+  geom_col(data = OE5.OE9.salinity.compiled.stat[(OE5.OE9.salinity.compiled.stat$condition=="Strain:OE5;Salinity:0;Induction light:300")|(OE5.OE9.salinity.compiled.stat$condition=="Strain:OE9;Salinity:0;Induction light:300"),],mapping = aes(x=Strain,y=norm.O2.evo.mean,fill=Strain,width=0.5,alpha=0.3))+
+  geom_errorbar(data = OE5.OE9.salinity.compiled.stat[(OE5.OE9.salinity.compiled.stat$condition=="Strain:OE5;Salinity:0;Induction light:300")|(OE5.OE9.salinity.compiled.stat$condition=="Strain:OE9;Salinity:0;Induction light:300"),],mapping = aes(x=Strain,ymin=norm.O2.evo.mean-norm.O2.evo.sd,ymax=norm.O2.evo.mean+norm.O2.evo.sd,color=Strain,width=0.3))+
+  geom_point(data=OE5.OE9.salinity.compiled[(OE5.OE9.salinity.compiled$Salinity.mM==0)&(OE5.OE9.salinity.compiled$induction.light=="300"),],mapping=aes(x=Strain,y=norm.rate.by.OD,color=Strain))+
+  scale_fill_manual(values = c("#E99C93","#CAD4E7"))+
+  scale_color_manual(values = c("#DA412F","#6789C9"))+
+  xlab("")+
+  ylab("")+
+  theme_bw()+
+  ggtitle(label = "Light: 300uE, Salinity: 0mM, Induction light: 300uE")+
+  theme(plot.title = element_text(size = 7, face = "bold"),
+        legend.position = "none")
+
+panel2 <- ggplot()+
+  geom_col(data = OE5.OE9.salinity.compiled.stat[(OE5.OE9.salinity.compiled.stat$condition=="Strain:OE5;Salinity:0;Induction light:max")|(OE5.OE9.salinity.compiled.stat$condition=="Strain:OE9;Salinity:0;Induction light:max"),],mapping = aes(x=Strain,y=norm.O2.evo.mean,fill=Strain,width=0.5,alpha=0.3))+
+  geom_errorbar(data = OE5.OE9.salinity.compiled.stat[(OE5.OE9.salinity.compiled.stat$condition=="Strain:OE5;Salinity:0;Induction light:max")|(OE5.OE9.salinity.compiled.stat$condition=="Strain:OE9;Salinity:0;Induction light:max"),],mapping = aes(x=Strain,ymin=norm.O2.evo.mean-norm.O2.evo.sd,ymax=norm.O2.evo.mean+norm.O2.evo.sd,color=Strain,width=0.3))+
+  geom_point(data=OE5.OE9.salinity.compiled[(OE5.OE9.salinity.compiled$Salinity.mM==0)&(OE5.OE9.salinity.compiled$induction.light=="max"),],mapping=aes(x=Strain,y=norm.rate.by.OD,color=Strain))+
+  scale_fill_manual(values = c("#E99C93","#CAD4E7"))+
+  scale_color_manual(values = c("#DA412F","#6789C9"))+
+  xlab("")+
+  ylab("")+
+  theme_bw()+
+  ggtitle(label = "Light: 300uE, Salinity: 0mM, Induction light: max")+
+  theme(plot.title = element_text(size = 7, face = "bold"),
+        legend.position = "none")
+
+panel3 <- ggplot()+
+  geom_col(data = OE5.OE9.salinity.compiled.stat[(OE5.OE9.salinity.compiled.stat$condition=="Strain:OE5;Salinity:150;Induction light:300")|(OE5.OE9.salinity.compiled.stat$condition=="Strain:OE9;Salinity:150;Induction light:300"),],mapping = aes(x=Strain,y=norm.O2.evo.mean,fill=Strain,width=0.5,alpha=0.3))+
+  geom_errorbar(data = OE5.OE9.salinity.compiled.stat[(OE5.OE9.salinity.compiled.stat$condition=="Strain:OE5;Salinity:150;Induction light:300")|(OE5.OE9.salinity.compiled.stat$condition=="Strain:OE9;Salinity:150;Induction light:300"),],mapping = aes(x=Strain,ymin=norm.O2.evo.mean-norm.O2.evo.sd,ymax=norm.O2.evo.mean+norm.O2.evo.sd,color=Strain,width=0.3))+
+  geom_point(data=OE5.OE9.salinity.compiled[(OE5.OE9.salinity.compiled$Salinity.mM==150)&(OE5.OE9.salinity.compiled$induction.light=="300"),],mapping=aes(x=Strain,y=norm.rate.by.OD,color=Strain))+
+  scale_fill_manual(values = c("#E99C93","#CAD4E7"))+
+  scale_color_manual(values = c("#DA412F","#6789C9"))+
+  xlab("")+
+  ylab("")+
+  ylim(0,50)+
+  annotate("text", x = 2, y = 45, 
+           label = "*",
+           size = 16 / .pt, color = "#22292F")+
+  theme_bw()+
+  ggtitle(label = "Light: 300uE, Salinity: 150mM, Induction light: 300uE")+
+  theme(plot.title = element_text(size = 7, face = "bold"),
+        legend.position = "none")
+
+panel4 <- ggplot()+
+  geom_col(data = OE5.OE9.salinity.compiled.stat[(OE5.OE9.salinity.compiled.stat$condition=="Strain:OE5;Salinity:150;Induction light:max")|(OE5.OE9.salinity.compiled.stat$condition=="Strain:OE9;Salinity:150;Induction light:max"),],mapping = aes(x=Strain,y=norm.O2.evo.mean,fill=Strain,width=0.5,alpha=0.3))+
+  geom_errorbar(data = OE5.OE9.salinity.compiled.stat[(OE5.OE9.salinity.compiled.stat$condition=="Strain:OE5;Salinity:150;Induction light:max")|(OE5.OE9.salinity.compiled.stat$condition=="Strain:OE9;Salinity:150;Induction light:max"),],mapping = aes(x=Strain,ymin=norm.O2.evo.mean-norm.O2.evo.sd,ymax=norm.O2.evo.mean+norm.O2.evo.sd,color=Strain,width=0.3))+
+  geom_point(data=OE5.OE9.salinity.compiled[(OE5.OE9.salinity.compiled$Salinity.mM==150)&(OE5.OE9.salinity.compiled$induction.light=="max"),],mapping=aes(x=Strain,y=norm.rate.by.OD,color=Strain))+
+  scale_fill_manual(values = c("#E99C93","#CAD4E7"))+
+  scale_color_manual(values = c("#DA412F","#6789C9"))+
+  xlab("")+
+  ylab("")+
+  ylim(0,70)+
+  annotate("text", x = 2, y = 65, 
+           label = "**",
+           size = 16 / .pt, color = "#22292F")+
+  theme_bw()+
+  ggtitle(label = "Light: 300uE, Salinity: 150mM, Induction light: max")+
+  theme(plot.title = element_text(size = 7, face = "bold"),
+        legend.position = "none")
+
+panel5 <- ggplot()+
+  geom_col(data = OE5.OE9.salinity.compiled.stat[(OE5.OE9.salinity.compiled.stat$condition=="Strain:OE5;Salinity:300;Induction light:300")|(OE5.OE9.salinity.compiled.stat$condition=="Strain:OE9;Salinity:300;Induction light:300"),],mapping = aes(x=Strain,y=norm.O2.evo.mean,fill=Strain,width=0.5,alpha=0.3))+
+  geom_errorbar(data = OE5.OE9.salinity.compiled.stat[(OE5.OE9.salinity.compiled.stat$condition=="Strain:OE5;Salinity:300;Induction light:300")|(OE5.OE9.salinity.compiled.stat$condition=="Strain:OE9;Salinity:300;Induction light:300"),],mapping = aes(x=Strain,ymin=norm.O2.evo.mean-norm.O2.evo.sd,ymax=norm.O2.evo.mean+norm.O2.evo.sd,color=Strain,width=0.3))+
+  geom_point(data=OE5.OE9.salinity.compiled[(OE5.OE9.salinity.compiled$Salinity.mM==300)&(OE5.OE9.salinity.compiled$induction.light=="300"),],mapping=aes(x=Strain,y=norm.rate.by.OD,color=Strain))+
+  scale_fill_manual(values = c("#E99C93","#CAD4E7"))+
+  scale_color_manual(values = c("#DA412F","#6789C9"))+
+  xlab("")+
+  ylab("")+
+  ylim(0,40)+
+  annotate("text", x = 2, y = 35, 
+           label = "*",
+           size = 16 / .pt, color = "#22292F")+
+  theme_bw()+
+  ggtitle(label = "Light: 300uE, Salinity: 300mM, Induction light: 300uE")+
+  theme(plot.title = element_text(size = 7, face = "bold"),
+        legend.position = "none")
+
+panel6 <- ggplot()+
+  geom_col(data = OE5.OE9.salinity.compiled.stat[(OE5.OE9.salinity.compiled.stat$condition=="Strain:OE5;Salinity:300;Induction light:max")|(OE5.OE9.salinity.compiled.stat$condition=="Strain:OE9;Salinity:300;Induction light:max"),],mapping = aes(x=Strain,y=norm.O2.evo.mean,fill=Strain,width=0.5,alpha=0.3))+
+  geom_errorbar(data = OE5.OE9.salinity.compiled.stat[(OE5.OE9.salinity.compiled.stat$condition=="Strain:OE5;Salinity:300;Induction light:max")|(OE5.OE9.salinity.compiled.stat$condition=="Strain:OE9;Salinity:300;Induction light:max"),],mapping = aes(x=Strain,ymin=norm.O2.evo.mean-norm.O2.evo.sd,ymax=norm.O2.evo.mean+norm.O2.evo.sd,color=Strain,width=0.3))+
+  geom_point(data=OE5.OE9.salinity.compiled[(OE5.OE9.salinity.compiled$Salinity.mM==300)&(OE5.OE9.salinity.compiled$induction.light=="max"),],mapping=aes(x=Strain,y=norm.rate.by.OD,color=Strain))+
+  scale_fill_manual(values = c("#E99C93","#CAD4E7"))+
+  scale_color_manual(values = c("#DA412F","#6789C9"))+
+  xlab("")+
+  ylab("")+
+  ylim(0,50)+
+  annotate("text", x = 2, y = 45, 
+           label = "p=0.1625",
+           size = 8 / .pt, color = "#22292F")+
+  theme_bw()+
+  ggtitle(label = "Light: 300uE, Salinity: 300mM, Induction light: max")+
+  theme(plot.title = element_text(size = 7, face = "bold"),
+        legend.position = "none")
+
+compiled.fig <- ggarrange(panel1,panel2,panel3,panel4,panel5,panel6,
+          labels = c("a","b","c","d","e","f"),
+          ncol=2,nrow = 3)
+annotate_figure(compiled.fig,
+                bottom = text_grob("Strain",face = "bold",size=14),
+                left = text_grob("Normalized O2 evolution",face = "bold",size=14,rot = 90))
+```
+Incorporate different salt concentration but same induction light:
+```{r}
+ggplot()+
+  geom_col(data = OE5.OE9.salinity.compiled.stat[OE5.OE9.salinity.compiled.stat$Induction.light=="300",],mapping = aes(x=Salinity,y=norm.O2.evo.mean,fill=Strain,width=0.5),position = "dodge")+
+  scale_fill_manual(values=c("#E99C93","#CAD4E7"))+
+  geom_errorbar(data = OE5.OE9.salinity.compiled.stat[OE5.OE9.salinity.compiled.stat$Induction.light=="300",],mapping = aes(x=Salinity,ymin=norm.O2.evo.mean-norm.O2.evo.sd,ymax=norm.O2.evo.mean+norm.O2.evo.sd,color=Strain),position = position_dodge(width = 0.5),width=0.3)+
+  scale_color_manual(values=c("#DA412F","#6789C9"))+
+  geom_point(data=OE5.OE9.salinity.compiled[OE5.OE9.salinity.compiled$induction.light==300,],mapping = aes(x=factor(Salinity.mM),y=norm.rate.by.OD,color=Strain),
+             position=position_jitterdodge(jitter.width = 0.2,dodge.width=0.5),
+             size=3)+
+  xlab("NaCl concentraion/mM")+
+  ylab("Normalized O2 evolution rate")+
+  theme_bw()+
+  ggtitle(label = "Light: 300uE, Salinity: 0mM, Induction light: 300uE")+
+  theme(plot.title = element_text(size = 7, face = "bold"),
+        legend.position = "none")
+```
+Incorporate everything:
+```{r}
+normalized.O2.evo.varying.salt <- 
+ggplot()+
+  geom_col(data = OE5.OE9.salinity.compiled.stat,mapping = aes(x=Salinity,y=norm.O2.evo.mean,fill=interaction(Strain,Induction.light),width=0.5),position = "dodge")+
+  scale_fill_manual(values=c("#f0c9c4","#CAD4E7","#E99C93","#9fb4db"))+
+  geom_point(data=OE5.OE9.salinity.compiled,mapping = aes(x=factor(Salinity.mM),y=norm.rate.by.OD,color=interaction(Strain,induction.light)),
+             position=position_jitterdodge(jitter.width = 0.2,dodge.width=0.5),
+             size=0.8)+
+  scale_color_manual(values=c("#DA412F","#6789C9","#DA412F","#6789C9"))+  
+  geom_errorbar(data = OE5.OE9.salinity.compiled.stat,mapping = aes(x=Salinity,ymin=norm.O2.evo.mean-norm.O2.evo.sd,ymax=norm.O2.evo.mean+norm.O2.evo.sd,color=interaction(Strain,Induction.light)),position = position_dodge(width = 0.5),width=0.3)+
+  #scale_color_manual(values=c("#E99C93","#9fb4db","#f0c9c4","#CAD4E7"))+
+  xlab("NaCl concentraion(mM)")+
+  ylab(expression(bold(atop("Normalized O"[2] * " evolution rate", "(nmol/mL/s/OD"[730] * ")"))))+
+  theme_bw()+
+  theme(plot.margin = unit(c(0,0,0,0),"cm"),
+        legend.position = "none",
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.title=element_text(size=20/.pt,face="bold"))+
+  geom_segment(aes(x=0.75,xend=1,y=43,yend=43))+
+  annotate("text", x = 0.875, y = 45, 
+           label = "ns",
+           size = 6 / .pt, color = "#22292F")+
+  geom_segment(aes(x=1,xend=1.25,y=58,yend=58))+
+  annotate("text", x = 1.125, y = 60, 
+           label = "ns",
+           size = 6 / .pt, color = "#22292F")+
+  geom_segment(aes(x=1.75,xend=2,y=40,yend=40))+
+  annotate("text", x = 1.875, y = 42, 
+           label = "*",
+           size = 16 / .pt, color = "#22292F")+
+  geom_segment(aes(x=2,xend=2.25,y=60,yend=60))+
+  annotate("text", x = 2.125, y = 62, 
+           label = "**",
+           size = 16 / .pt, color = "#22292F")+
+  geom_segment(aes(x=2.75,xend=3,y=33,yend=33))+
+  annotate("text", x = 2.875, y = 35, 
+           label = "*",
+           size = 16 / .pt, color = "#22292F")+
+  geom_segment(aes(x=3,xend=3.25,y=40,yend=40))+
+  annotate("text", x = 3.125, y = 42, 
+           label = "p=0.1625",
+           size = 6 / .pt, color = "#22292F")
+
+
+ggsave(filename = file.path("./image","20240610-normalized-O2-evo-varying-salt.pdf"),plot = normalized.O2.evo.varying.salt, device = "pdf", width = 8.5, height = 6, units = "cm")
+```
+O2 generated in 10min normalized by OD730:
+T test:
+```{r}
+#O2 generated in 10min: 0mM, 300uE, 300uE
+t.test(OE5.OE9.salinity.compiled[(OE5.OE9.salinity.compiled$Salinity.mM==0)&(OE5.OE9.salinity.compiled$induction.light=="300")&(OE5.OE9.salinity.compiled$Strain=="OE5"),]$norm.10min.O2.gen,OE5.OE9.salinity.compiled[(OE5.OE9.salinity.compiled$Salinity.mM==0)&(OE5.OE9.salinity.compiled$induction.light=="300")&(OE5.OE9.salinity.compiled$Strain=="OE9"),]$norm.10min.O2.gen)
+#O2 generated in 10min: 0mM, 300uE, max
+t.test(OE5.OE9.salinity.compiled[(OE5.OE9.salinity.compiled$Salinity.mM==0)&(OE5.OE9.salinity.compiled$induction.light=="max")&(OE5.OE9.salinity.compiled$Strain=="OE5"),]$norm.10min.O2.gen,OE5.OE9.salinity.compiled[(OE5.OE9.salinity.compiled$Salinity.mM==0)&(OE5.OE9.salinity.compiled$induction.light=="max")&(OE5.OE9.salinity.compiled$Strain=="OE9"),]$norm.10min.O2.gen)
+#O2 generated in 10min: 150mM, 300uE, 300uE
+t.test(OE5.OE9.salinity.compiled[(OE5.OE9.salinity.compiled$Salinity.mM==150)&(OE5.OE9.salinity.compiled$induction.light=="300")&(OE5.OE9.salinity.compiled$Strain=="OE5"),]$norm.10min.O2.gen,OE5.OE9.salinity.compiled[(OE5.OE9.salinity.compiled$Salinity.mM==150)&(OE5.OE9.salinity.compiled$induction.light=="300")&(OE5.OE9.salinity.compiled$Strain=="OE9"),]$norm.10min.O2.gen)
+#O2 generated in 10min: 150mM, 300uE, max
+t.test(OE5.OE9.salinity.compiled[(OE5.OE9.salinity.compiled$Salinity.mM==150)&(OE5.OE9.salinity.compiled$induction.light=="max")&(OE5.OE9.salinity.compiled$Strain=="OE5"),]$norm.10min.O2.gen,OE5.OE9.salinity.compiled[(OE5.OE9.salinity.compiled$Salinity.mM==150)&(OE5.OE9.salinity.compiled$induction.light=="max")&(OE5.OE9.salinity.compiled$Strain=="OE9"),]$norm.10min.O2.gen)
+#O2 generated in 10min: 300mM, 300uE, 300uE
+t.test(OE5.OE9.salinity.compiled[(OE5.OE9.salinity.compiled$Salinity.mM==300)&(OE5.OE9.salinity.compiled$induction.light=="300")&(OE5.OE9.salinity.compiled$Strain=="OE5"),]$norm.10min.O2.gen,OE5.OE9.salinity.compiled[(OE5.OE9.salinity.compiled$Salinity.mM==300)&(OE5.OE9.salinity.compiled$induction.light=="300")&(OE5.OE9.salinity.compiled$Strain=="OE9"),]$norm.10min.O2.gen)
+#O2 generated in 10min: 300mM, 300uE, max
+t.test(OE5.OE9.salinity.compiled[(OE5.OE9.salinity.compiled$Salinity.mM==300)&(OE5.OE9.salinity.compiled$induction.light=="max")&(OE5.OE9.salinity.compiled$Strain=="OE5"),]$norm.10min.O2.gen,OE5.OE9.salinity.compiled[(OE5.OE9.salinity.compiled$Salinity.mM==300)&(OE5.OE9.salinity.compiled$induction.light=="max")&(OE5.OE9.salinity.compiled$Strain=="OE9"),]$norm.10min.O2.gen)
+
+```
+2024/07/23: split the O2 evolution data into two new panels: 
+1. O2 evolution under 300uE
+```{r}
+varying.salinity.300uE.plot <- 
+ggplot()+
+  geom_col(data = OE5.OE9.salinity.compiled.stat[OE5.OE9.salinity.compiled.stat$Induction.light=="300",],mapping = aes(x=Salinity,y=norm.O2.evo.mean,color=Strain,fill=Strain,width=0.5),position = "dodge")+
+  scale_color_manual(values=c("grey0","grey0"))+
+  scale_fill_manual(values=c("#f4dfb1","#c0d9b2"))+
+  geom_point(data=OE5.OE9.salinity.compiled[OE5.OE9.salinity.compiled$induction.light=="300",],mapping = aes(x=factor(Salinity.mM),y=norm.rate.by.OD,color=Strain),
+             position=position_jitterdodge(jitter.width = 0.2,dodge.width=0.5),
+             size=0.8)+
+  scale_color_manual(values=c("grey0","grey0"))+
+  geom_errorbar(data = OE5.OE9.salinity.compiled.stat[OE5.OE9.salinity.compiled.stat$Induction.light=="300",],mapping = aes(x=Salinity,ymin=norm.O2.evo.mean-norm.O2.evo.sd,ymax=norm.O2.evo.mean+norm.O2.evo.sd,color=Strain),position = position_dodge(width = 0.5),width=0.3)+
+  xlab("NaCl concentraion (mM)")+
+  ylab(expression(atop(paste("O"[2] * " evolution rate under 300",mu,"E induction"), "(nmol/mL/s/OD"[730] * ")")))+
+  theme_classic()+
+  theme(plot.margin = unit(c(0,0,0,0),"cm"),
+        legend.position = "none",
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.text=element_text(size=20/ .pt),
+        axis.title=element_text(size=20/ .pt))+
+  geom_segment(aes(x=0.75,xend=1.25,y=43,yend=43))+
+  annotate("text", x = 1, y = 46, 
+           label = "ns",
+           size = 10 / .pt, color = "#22292F")+
+  geom_segment(aes(x=1.75,xend=2.25,y=40,yend=40))+
+  annotate("text", x = 2, y = 42, 
+           label = "*",
+           size = 16 / .pt, color = "#22292F")+
+  geom_segment(aes(x=2.75,xend=3.25,y=33,yend=33))+
+  annotate("text", x = 3, y = 35, 
+           label = "*",
+           size = 16 / .pt, color = "#22292F")+
+  scale_y_continuous(expand = c(0,0),limits=c(0,70))
+
+ggsave(filename = file.path("./image","20250411-revised-Fig5c.pdf"),plot = varying.salinity.300uE.plot, device = "pdf", width = 8.5, height = 6, units = "cm")
+```
+2. O2 evolution under max light
+```{r}
+varying.salinity.max.plot <- 
+ggplot()+
+  geom_col(data = OE5.OE9.salinity.compiled.stat[OE5.OE9.salinity.compiled.stat$Induction.light=="max",],mapping = aes(x=Salinity,y=norm.O2.evo.mean,color=Strain,fill=Strain,width=0.5),position = "dodge")+
+  scale_fill_manual(values=c("#F2D086","#95BE7E"))+
+  scale_color_manual(values=c("grey0","grey0"))+
+  geom_point(data=OE5.OE9.salinity.compiled[OE5.OE9.salinity.compiled$induction.light=="max",],mapping = aes(x=factor(Salinity.mM),y=norm.rate.by.OD,color=Strain),
+             position=position_jitterdodge(jitter.width = 0.2,dodge.width=0.5),
+             size=0.8)+
+  scale_color_manual(values=c("grey0","grey0"))+
+  geom_errorbar(data = OE5.OE9.salinity.compiled.stat[OE5.OE9.salinity.compiled.stat$Induction.light=="max",],mapping = aes(x=Salinity,ymin=norm.O2.evo.mean-norm.O2.evo.sd,ymax=norm.O2.evo.mean+norm.O2.evo.sd,color=Strain),position = position_dodge(width = 0.5),width=0.3)+
+  xlab("NaCl concentraion (mM)")+
+  ylab(expression(atop("O"[2] * " evolution rate under max induction", "(nmol/mL/s/OD"[730] * ")")))+
+  theme_classic()+
+  theme(plot.margin = unit(c(0,0,0,0),"cm"),
+        legend.position = "none",
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.text=element_text(size=20/ .pt),
+        axis.title=element_text(size=20/ .pt))+
+  geom_segment(aes(x=0.75,xend=1.25,y=58,yend=58))+
+  annotate("text", x = 1, y = 61, 
+           label = "ns",
+           size = 10 / .pt, color = "#22292F")+
+  geom_segment(aes(x=1.75,xend=2.25,y=60,yend=60))+
+  annotate("text", x = 2, y = 62, 
+           label = "**",
+           size = 16 / .pt, color = "#22292F")+
+  geom_segment(aes(x=2.75,xend=3.25,y=40,yend=40))+
+  annotate("text", x = 3, y = 43, 
+           label = expression(paste(italic(p),"=0.1625"),
+           size = 10 / .pt, color = "#22292F"))+
+  scale_y_continuous(expand = c(0,0),limits=c(0,70))
+
+ggsave(filename = file.path("./image","20240725-revised-Fig5d.pdf"),plot = varying.salinity.max.plot, device = "pdf", width = 8.5, height = 6, units = "cm")
+```
+
+#g. Visualize the proteomic data between OE5 and OE9 under 300uE light and 150mM salt
+```{r}
+proteomics.dat <- read.csv("/Users/Zhenxiong/Downloads/20241217-OE5-OE9-comparison-by-Xin-Lstringency0-Fstringency0.02.csv")
+```
+```{r}
+proteomics.dat <- proteomics.dat %>%
+mutate(minus.log10 = -log10(pValue)) %>% mutate(FC=Signal.Top./Signal.Bottom.) %>% mutate(log2.FC=log2(FC)) %>% mutate(Group=case_when(
+  (log2.FC<0)&(Label=="Blue") ~ "OE5",
+  (log2.FC>0)&(Label=="Blue") ~ "OE9",
+  TRUE ~ "Others"
+)) %>% mutate(rim.col=case_when(
+  (Group=="OE5")&(Protein!="") ~ "black",
+  (Group=="OE9")&(Protein!="") ~ "black",
+  (Group=="OE5")&(Protein=="") ~ "#F2D086",
+  (Group=="OE9")&(Protein=="") ~ "#95BE7E",
+  TRUE ~ "#AFAFA8"
+))
+```
+```{r}
+early.log.sig <- 
+  ggplot()+
+  geom_point(proteomics.dat,mapping=aes(x=log2.FC,y=minus.log10,color=rim.col,fill=Group),shape = 21, stroke = 0.2,size=0.5)+
+  geom_text_repel(data=proteomics.dat[proteomics.dat$Protein!="",],mapping=aes(x=log2.FC,y=minus.log10,label=Protein),size=2.5,min.segment.length = unit(0, 'lines'),segment.size=0.2)+
+  #geom_segment(x=0.5,y=0,yend=10,linetype =2,linewidth = 0.2,color="#BFBFBF")+
+  #geom_segment(x=-0.5,y=0,yend=10,linetype =2,linewidth = 0.2,color="#BFBFBF")+
+  #geom_segment(y=1.3,x=-4,xend=4,linetype =2,linewidth = 0.2,color="#BFBFBF")+
+  scale_fill_manual(values = c("#F2D086","#95BE7E","#AFAFA8"))+
+  scale_color_manual(values = c("#95BE7E","#AFAFA8","#F2D086","grey0"))+
+  geom_point(proteomics.dat[proteomics.dat$Protein!="",],mapping=aes(x=log2.FC,y=minus.log10),color="grey0",shape=1, stroke = 0.2,size=0.5)+
+  annotate("text", label = expression(italic(psbA1)^WT),
+    x = -3.5, y = 4.9, size = 8 / .pt, colour = "grey0")+
+  annotate("text", label = expression(italic(psbA1)^L353F),
+    x = 3.3, y = 4.9, size = 8 / .pt, colour = "grey0")+
+  xlab("log2(Fold Change)")+
+  ylab("-log10(p-value)")+
+  xlim(-4,4)+
+  theme_bw()+
+  theme(legend.position = "none",
+        axis.text.x = element_text(size=20 / .pt, angle=0),
+        axis.text.y = element_text(size=20 / .pt, angle=0),
+        panel.grid.major = element_line(size=0, linetype="blank",color="white"),
+        panel.grid.minor = element_line(size=0, linetype="blank",color="white"),
+        axis.title=element_text(size=20/.pt),
+        legend.text = element_text(size = 20 / .pt),
+        legend.title = element_text(size = 0 / .pt),
+        legend.key.height = unit(0.45,"cm"),
+        legend.key.width = unit(0.4,"cm"),
+        legend.text.align = 0)
+
+ggsave(filename = file.path("/Users/Zhenxiong/OneDrive - Duke University/Data_file/Zhenxiong_Shaun_Jiang/data/image","20241219-early.log.proteomics.pdf"),plot = early.log.sig, device = "pdf", width = 8.5, height = 6, units = "cm")
+```
+Bar plot of PSII components
+```{r}
+# Assuming your data frame is named `df`
+# Filter the data for "Photosystem II"
+photosystem_II_data <- proteomics.dat[grepl("Photosystem II", proteomics.dat$Description), ]
+
+# Create the bar plot
+#PSII.fold.change <- 
+  ggplot(photosystem_II_data, aes(x = reorder(Description, log2.FC), y = log2.FC)) +
+  geom_bar(stat = "identity", fill = "#d0cece") +
+  coord_flip() +  # Flip coordinates for better readability
+  labs(
+    x = "PSII Components",
+    y = ""
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(axis.text.x = element_text(size=18 / .pt, angle=0),
+        axis.text.y = element_text(size=18 / .pt, angle=0),
+        axis.title=element_text(size=20/.pt))
+
+#ggsave(filename = file.path("./image","20241122-Fig5f1.pdf"),plot = PSII.fold.change, device = "pdf", width = 8.5, height = 3, units = "cm")
+```
+Bar plots of PSI components:
+```{r}
+# Assuming your data frame is named `df`
+# Filter the data for "Photosystem II"
+photosystem_I_data <- proteomics.dat[grepl("Photosystem I ", proteomics.dat$Description), ]
+
+# Create the bar plot
+#PSI.fold.change <- 
+  ggplot(photosystem_I_data, aes(x = reorder(Description, log2.FC), y = log2.FC)) +
+  geom_bar(stat = "identity", fill = "#d0cece") +
+  coord_flip() +  # Flip coordinates for better readability
+  labs(
+    x = "PSI Components",
+    y = "Log2 Fold Change"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(axis.text.x = element_text(size=18 / .pt, angle=0),
+        axis.text.y = element_text(size=18 / .pt, angle=0),
+        axis.title=element_text(size=20/.pt))
+
+#ggsave(filename = file.path("./image","20241122-Fig5f2.pdf"),plot = PSI.fold.change, device = "pdf", width = 8.5, height = 2, units = "cm")
+```

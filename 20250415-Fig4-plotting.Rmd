@@ -1,0 +1,956 @@
+---
+title: "20240411-Fig5-plotting"
+author: "Zhenxiong Jiang"
+date: "2024-04-11"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(ggplot2)
+library(ggthemes)
+library(tidyr)
+library(dplyr)
+library(ggpubr)
+library(pracma)
+library(gridExtra)
+library(plotrix)
+```
+
+# 1. To plot the fold change of OEs under salted or unsalted plus high light condition, 96-well plate assay was performed and analysed to assess the effect by D1 mutations. (16 replicates)
+1. For salted high light:
+```{r}
+OE.growth.highLight.salted <- read.csv("OE-growth/20240411-6h-18h-fold-change-salted-highlight-96well.csv")
+
+OE.stat.highLight.salted <- OE.growth.highLight.salted %>% group_by(Strain) %>% summarise(salted.mean=mean(fold.change),salted.std=sd(fold.change))
+
+my_comparisons <- list(c("WT","I358N"),c("WT","T354P"),c("WT","H359N"),c("WT","L353F"),c("WT","T354A"),c("WT","T354P+I358N+H359N"),c("WT","L353F+T354A+I358N"))
+
+compare_means(fold.change ~ Strain,  data = OE.growth.highLight.salted, ref.group = "WT",
+              method = "t.test")
+
+highlight.salted.plot <- 
+ggboxplot(OE.growth.highLight.salted[(OE.growth.highLight.salted$Strain!="T354P")&(OE.growth.highLight.salted$Strain!="T354A"),],x="Strain",y="fold.change",color="Strain",palette="jco",add="jitter",width=0.1)+
+  ylab("Biomass fold change: 18h/6h")+
+  geom_violin(data = OE.growth.highLight.salted[(OE.growth.highLight.salted$Strain!="T354P")&(OE.growth.highLight.salted$Strain!="T354A"),], mapping=aes(x=Strain,y=fold.change,color=Strain,width=1,fill=NA),width=0.7,scale = "width",trim = FALSE)+
+  stat_compare_means(label = "p.signif",method = "t.test",ref.group = "WT",vjust =1)+
+  ylim(1.1,4.5)+
+  scale_color_manual(values=c("#F2D086","#E2CD89","#B1C07A","#95BE7E","#43BC97","#57B1A9"))+
+  theme(legend.position = "none",
+        axis.text=element_text(size=7),
+        axis.title=element_text(size=7),
+        axis.text.x = element_text(angle = 15, vjust = 0.5, hjust=0.5))
+
+ggsave(filename = file.path("./image","20240723-revised-Fig4d.pdf"),plot = highlight.salted.plot, device = "pdf", width = 14.5, height = 6, units = "cm")
+```
+2. For unsalted high light:
+```{r}
+OE.growth.highLight.unsalted <- read.csv("OE-growth/20240411-6h-18h-fold-change-unsalted-highlight-96well.csv")
+
+OE.stat.highLight.unsalted <- OE.growth.highLight.unsalted %>% group_by(Strain) %>% summarise(unsalted.mean=mean(fold.change),unsalted.std=sd(fold.change))
+
+my_comparisons <- list(c("WT","I358N"),c("WT","T354P"),c("WT","H359N"),c("WT","L353F"),c("WT","T354A"),c("WT","T354P+I358N+H359N"),c("WT","L353F+T354A+I358N"))
+
+compare_means(fold.change ~ Strain,  data = OE.growth.highLight.unsalted, ref.group = "WT",method = "t.test")
+
+
+highlight.unsalted.plot <- ggboxplot(OE.growth.highLight.unsalted[(OE.growth.highLight.unsalted$Strain!="T354P")&(OE.growth.highLight.unsalted$Strain!="T354A"),],x="Strain",y="fold.change",color="Strain",palette="jco",add="jitter",width=0.1)+
+  stat_compare_means(label = "p.signif",method = "t.test",ref.group = "WT",vjust=1)+
+  ylab("Biomass fold change: 18h/6h")+
+  xlab("")+
+  ylim(2.7,6)+
+  geom_violin(data = OE.growth.highLight.unsalted[(OE.growth.highLight.unsalted$Strain!="T354P")&(OE.growth.highLight.unsalted$Strain!="T354A"),], mapping=aes(x=Strain,y=fold.change,color=Strain,width=1,fill=NA),width=0.7,scale = "width",trim = FALSE)+
+  scale_color_manual(values=c("#F2D086","#E2CD89","#B1C07A","#95BE7E","#43BC97","#57B1A9"))+
+  theme(legend.position = "none",
+        axis.text.y=element_text(size=7),
+        axis.text.x=element_text(size=0),
+        axis.title=element_text(size=7))
+
+ggsave(filename = file.path("./image","20240723-revised-Fig4c.pdf"),plot = highlight.unsalted.plot, device = "pdf", width = 14.5, height = 4, units = "cm")
+```
+3. For salted low light (6-30h):
+```{r}
+OE.growth.lowLight.salted <- read.csv("OE-growth/20240411-6h-30h-fold-change-salted-lowlight-96well.csv")
+
+OE.stat.lowLight.salted <- OE.growth.lowLight.salted %>% group_by(Strain) %>% summarise(salted.mean=mean(fold.change),salted.std=sd(fold.change))
+
+my_comparisons <- list(c("WT","I358N"),c("WT","T354P"),c("WT","H359N"),c("WT","L353F"),c("WT","T354S"),c("WT","T354P+I358N+H359N"),c("WT","L353F+T354A+I358N"))
+
+compare_means(fold.change ~ Strain,  data = OE.growth.lowLight.salted, ref.group = "WT",
+              method = "t.test")
+
+lowlight.salted.plot <- ggboxplot(OE.growth.lowLight.salted[(OE.growth.lowLight.salted$Strain!="T354P")&(OE.growth.lowLight.salted$Strain!="T354A"),],x="Strain",y="fold.change",color="Strain",palette="jco",add="jitter",width=0.1)+
+  stat_compare_means(label = "p.signif",method = "t.test",ref.group = "WT",vjust = 1)+
+  ylab("Biomass fold change: 30h/6h")+
+  xlab("")+
+  ylim(2.1,8)+
+  geom_violin(data = OE.growth.lowLight.salted[(OE.growth.lowLight.salted$Strain!="T354P")&(OE.growth.lowLight.salted$Strain!="T354A"),], mapping=aes(x=Strain,y=fold.change,color=Strain,width=1,fill=NA),width=0.7,scale = "width",trim = FALSE)+
+  scale_color_manual(values=c("#F2D086","#E2CD89","#B1C07A","#95BE7E","#43BC97","#57B1A9"))+
+  theme(legend.position = "none",
+        axis.text.y=element_text(size=7),
+        axis.text.x=element_text(size=0),
+        axis.title=element_text(size=7))
+
+ggsave(filename = file.path("./image","20240723-revised-Fig4b.pdf"),plot = lowlight.salted.plot, device = "pdf", width = 14.5, height = 4, units = "cm")
+```
+
+To plot the growth curve in multicultivator and growth rate:
+# 2. Load salted data under 300uE in multicultivator for data collected at 20240401:
+```{r}
+salted.highlight.300uE <- read.csv("OE-growth/20240401-20240505-OE-multicultivator-compilation-salted-highlight-300uE.csv",header=T)
+salted.highlight.300uE <- salted.highlight.300uE[salted.highlight.300uE$Time<=158400,]
+salted.highlight.300uE <- salted.highlight.300uE %>% mutate(LN=log(as.numeric(OD730)))
+
+Time <- salted.highlight.300uE[(salted.highlight.300uE$Position=="1-1")&(salted.highlight.300uE$Batch=="20240401"),]$Time
+#Generate data for OE5-1
+OE5_1_1 <- salted.highlight.300uE[(salted.highlight.300uE$Strain=="OE5-1")&(salted.highlight.300uE$Position=="1-3")&(salted.highlight.300uE$Batch=="20240401"),]$OD730
+OE5_1_2 <- salted.highlight.300uE[(salted.highlight.300uE$Strain=="OE5-1")&(salted.highlight.300uE$Position=="1-6")&(salted.highlight.300uE$Batch=="20240401"),]$OD730
+OE5_1_3 <- salted.highlight.300uE[(salted.highlight.300uE$Strain=="OE5-1")&(salted.highlight.300uE$Position=="2-3")&(salted.highlight.300uE$Batch=="20240401"),]$OD730
+OE5_1_4 <- salted.highlight.300uE[(salted.highlight.300uE$Strain=="OE5-1")&(salted.highlight.300uE$Position=="2-6")&(salted.highlight.300uE$Batch=="20240401"),]$OD730
+OE5_1 <- data_frame(as.numeric(OE5_1_1),as.numeric(OE5_1_2),as.numeric(OE5_1_3),as.numeric(OE5_1_4))
+mean <- rowMeans(OE5_1)
+se <- apply(OE5_1, 1, std.error)
+up <- mean + se
+lo <- mean - se
+Strain <- as.factor(rep("OE5-1",265))
+OE5_1_plot <- data.frame(Time,mean,up,lo,Strain)
+#Generate data for OE6-2
+OE6_2_1 <- salted.highlight.300uE[(salted.highlight.300uE$Strain=="OE6-2")&(salted.highlight.300uE$Position=="2-1")&(salted.highlight.300uE$Batch=="20240401"),]$OD730
+OE6_2_2 <- salted.highlight.300uE[(salted.highlight.300uE$Strain=="OE6-2")&(salted.highlight.300uE$Position=="2-4")&(salted.highlight.300uE$Batch=="20240401"),]$OD730
+OE6_2_3 <- salted.highlight.300uE[(salted.highlight.300uE$Strain=="OE6-2")&(salted.highlight.300uE$Position=="2-7")&(salted.highlight.300uE$Batch=="20240401"),]$OD730
+OE6_2 <- data_frame(as.numeric(OE6_2_1),as.numeric(OE6_2_2),as.numeric(OE6_2_3))
+mean <- rowMeans(OE6_2)
+se <- apply(OE6_2, 1, std.error)
+up <- mean + se
+lo <- mean - se
+Strain <- as.factor(rep("OE6-2",265))
+OE6_2_plot <- data.frame(Time,mean,up,lo,Strain)
+#Generate data for OE7-2
+OE7_2_1 <- salted.highlight.300uE[(salted.highlight.300uE$Strain=="OE7-2")&(salted.highlight.300uE$Position=="1-1")&(salted.highlight.300uE$Batch=="20240505"),]$OD730
+OE7_2_2 <- salted.highlight.300uE[(salted.highlight.300uE$Strain=="OE7-2")&(salted.highlight.300uE$Position=="1-2")&(salted.highlight.300uE$Batch=="20240505"),]$OD730
+OE7_2_3 <- salted.highlight.300uE[(salted.highlight.300uE$Strain=="OE7-2")&(salted.highlight.300uE$Position=="1-3")&(salted.highlight.300uE$Batch=="20240505"),]$OD730
+OE7_2 <- data_frame(as.numeric(OE7_2_1),as.numeric(OE7_2_2),as.numeric(OE7_2_3))
+mean <- rowMeans(OE7_2)
+se <- apply(OE7_2, 1, std.error)
+up <- mean + se
+lo <- mean - se
+Strain <- as.factor(rep("OE7-2",265))
+OE7_2_plot <- data.frame(Time,mean,up,lo,Strain)
+#Generate data for OE8-2
+OE8_2_1 <- salted.highlight.300uE[(salted.highlight.300uE$Strain=="OE8-2")&(salted.highlight.300uE$Position=="1-1")&(salted.highlight.300uE$Batch=="20240401"),]$OD730
+OE8_2_2 <- salted.highlight.300uE[(salted.highlight.300uE$Strain=="OE8-2")&(salted.highlight.300uE$Position=="1-4")&(salted.highlight.300uE$Batch=="20240401"),]$OD730
+OE8_2_3 <- salted.highlight.300uE[(salted.highlight.300uE$Strain=="OE8-2")&(salted.highlight.300uE$Position=="1-7")&(salted.highlight.300uE$Batch=="20240401"),]$OD730
+OE8_2 <- data_frame(as.numeric(OE8_2_1),as.numeric(OE8_2_2),as.numeric(OE8_2_3))
+mean <- rowMeans(OE8_2)
+se <- apply(OE8_2, 1, std.error)
+up <- mean + se
+lo <- mean - se
+Strain <- as.factor(rep("OE8-2",265))
+OE8_2_plot <- data.frame(Time,mean,up,lo,Strain)
+#Generate data for OE9-3
+OE9_3_1 <- salted.highlight.300uE[(salted.highlight.300uE$Strain=="OE9-3")&(salted.highlight.300uE$Position=="1-4")&(salted.highlight.300uE$Batch=="20240505"),]$OD730
+OE9_3_2 <- salted.highlight.300uE[(salted.highlight.300uE$Strain=="OE9-3")&(salted.highlight.300uE$Position=="1-5")&(salted.highlight.300uE$Batch=="20240505"),]$OD730
+OE9_3_3 <- salted.highlight.300uE[(salted.highlight.300uE$Strain=="OE9-3")&(salted.highlight.300uE$Position=="1-6")&(salted.highlight.300uE$Batch=="20240505"),]$OD730
+OE9_3 <- data_frame(as.numeric(OE9_3_1),as.numeric(OE9_3_2),as.numeric(OE9_3_3))
+mean <- rowMeans(OE9_3)
+se <- apply(OE9_3, 1, std.error)
+up <- mean + se
+lo <- mean - se
+Strain <- as.factor(rep("OE9-3",265))
+OE9_3_plot <- data.frame(Time,mean,up,lo,Strain)
+
+p4 <- rbind(OE5_1_plot,OE6_2_plot,OE7_2_plot,OE8_2_plot,OE9_3_plot)
+```
+Calculate the growth rate:
+```{r}
+salted.highlight.300uE <- salted.highlight.300uE[!((salted.highlight.300uE$Strain=="OE7-2")&(salted.highlight.300uE$Batch==20240407)),]
+salted.highlight.300uE <- salted.highlight.300uE[!((salted.highlight.300uE$Strain=="OE9-3")&(salted.highlight.300uE$Batch==20240401)),]
+
+salted.highlight.300uE.gr <- salted.highlight.300uE[(salted.highlight.300uE$Time>=8*3600)&(salted.highlight.300uE$Time<=18*3600),] %>% mutate(LOG=log(as.numeric(OD730))) %>% mutate(Time=Time/3600) %>% group_by(Position) %>% summarise(growth.rate=lm(LOG~Time)$coefficient[2]) %>% inner_join(select(salted.highlight.300uE,Time,Strain,Position) %>% filter(Time==0)) %>% mutate(Mutants=ifelse(Strain=="OE5-1","WT",ifelse(Strain=="OE6-2","I358N",ifelse(Strain=="OE7-2","T354P",ifelse(Strain=="OE8-2","H359N",ifelse(Strain=="OE9-3","L353F",NA))))))
+
+salted.highlight.300uE.gr.stat <- salted.highlight.300uE.gr %>% group_by(Strain) %>%  summarise(gr.mean=mean(growth.rate),gr.sd=sd(growth.rate)) %>% mutate(Mutants=ifelse(Strain=="OE5-1","WT",ifelse(Strain=="OE6-2","I358N",ifelse(Strain=="OE7-2","T354P",ifelse(Strain=="OE8-2","H359N",ifelse(Strain=="OE9-3","L353F",NA))))))
+```
+T test:
+```{r}
+#t test on growth rate
+t.test(salted.highlight.300uE.gr[salted.highlight.300uE.gr$Strain=="OE5-1",]$growth.rate,salted.highlight.300uE.gr[salted.highlight.300uE.gr$Strain=="OE6-2",]$growth.rate)
+t.test(salted.highlight.300uE.gr[salted.highlight.300uE.gr$Strain=="OE5-1",]$growth.rate,salted.highlight.300uE.gr[salted.highlight.300uE.gr$Strain=="OE7-2",]$growth.rate)
+t.test(salted.highlight.300uE.gr[salted.highlight.300uE.gr$Strain=="OE5-1",]$growth.rate,salted.highlight.300uE.gr[salted.highlight.300uE.gr$Strain=="OE8-2",]$growth.rate)
+t.test(salted.highlight.300uE.gr[salted.highlight.300uE.gr$Strain=="OE5-1",]$growth.rate,salted.highlight.300uE.gr[salted.highlight.300uE.gr$Strain=="OE9-3",]$growth.rate)
+#t test on terminal OD at 25h under salt and light stress
+t.test(as.numeric(salted.highlight.300uE[(salted.highlight.300uE$Strain=="OE5-1")&(salted.highlight.300uE$Time==25*3600),]$OD730),as.numeric(salted.highlight.300uE[(salted.highlight.300uE$Strain=="OE6-2")&(salted.highlight.300uE$Time==25*3600),]$OD730))
+t.test(as.numeric(salted.highlight.300uE[(salted.highlight.300uE$Strain=="OE5-1")&(salted.highlight.300uE$Time==25*3600),]$OD730),as.numeric(salted.highlight.300uE[(salted.highlight.300uE$Strain=="OE8-2")&(salted.highlight.300uE$Time==25*3600),]$OD730))
+t.test(as.numeric(salted.highlight.300uE[(salted.highlight.300uE$Strain=="OE5-1")&(salted.highlight.300uE$Time==25*3600),]$OD730),as.numeric(salted.highlight.300uE[(salted.highlight.300uE$Strain=="OE9-3")&(salted.highlight.300uE$Time==25*3600),]$OD730))
+#t test on terminal OD at 25h under light stress
+t.test(as.numeric(salted.highlight.300uE[(salted.highlight.300uE$Strain=="OE5-1")&(salted.highlight.300uE$Time==25*3600),]$OD730),as.numeric(salted.highlight.300uE[(salted.highlight.300uE$Strain=="OE6-2")&(salted.highlight.300uE$Time==25*3600),]$OD730))
+t.test(as.numeric(salted.highlight.300uE[(salted.highlight.300uE$Strain=="OE5-1")&(salted.highlight.300uE$Time==25*3600),]$OD730),as.numeric(salted.highlight.300uE[(salted.highlight.300uE$Strain=="OE8-2")&(salted.highlight.300uE$Time==25*3600),]$OD730))
+t.test(as.numeric(salted.highlight.300uE[(salted.highlight.300uE$Strain=="OE5-1")&(salted.highlight.300uE$Time==25*3600),]$OD730),as.numeric(salted.highlight.300uE[(salted.highlight.300uE$Strain=="OE9-3")&(salted.highlight.300uE$Time==25*3600),]$OD730))
+
+```
+Plotting:
+```{r}
+salted.highlighted.plot56 <- 
+  ggplot(p4[((p4$Strain=="OE5-1")|(p4$Strain=="OE6-2"))&(p4$Time<25*3600),]) + 
+  theme_bw(base_line_size = 0.3) +
+  geom_point(aes(x=Time/3600, y=mean, color=Strain, fill=Strain),size=0.05) + 
+  geom_ribbon(aes(x=Time/3600, y=mean, ymin=lo, ymax=up, fill=Strain), alpha=0.5) +
+  ylab(bquote(OD["730"]))+
+  xlab("Time (h)")+
+  ylim(c(0,0.4))+
+  scale_color_manual(values=c("#F2D086","#E2CD89"))+
+  scale_fill_manual(values=c("#F2D086","#E2CD89"))+
+  theme(legend.position = "none",
+        panel.grid.major = element_line(size=0.1, linetype="blank",color="white"),
+        panel.grid.minor = element_line(size=0.1, linetype="blank",color="white"),
+        axis.text=element_text(size=5),
+        axis.title=element_text(size=5),
+        axis.ticks = element_line(size=0.1))+
+  geom_segment(aes(x=25.5,xend=25.5,y=0.25,yend=0.33))+
+  annotate("text", x = 27, y = 0.285, 
+           label = "**",
+           size = 10 / .pt, color = "#22292F")
+
+OE.growth.rate.comparison.56 <- 
+  ggplot()+
+  geom_col(data=salted.highlight.300uE.gr.stat[(salted.highlight.300uE.gr.stat$Strain=="OE5-1")|(salted.highlight.300uE.gr.stat$Strain=="OE6-2"),], mapping=aes(x= Mutants,y=gr.mean,width=0.5,alpha=0.3,fill=Strain))+
+  scale_fill_manual(values=c("#F2D086","#E2CD89"))+
+  geom_errorbar(data=salted.highlight.300uE.gr.stat[(salted.highlight.300uE.gr.stat$Strain=="OE5-1")|(salted.highlight.300uE.gr.stat$Strain=="OE6-2"),],mapping=aes(x=Mutants, ymin=gr.mean-gr.sd, ymax=gr.mean+gr.sd,color=Strain), width=.3,position=position_dodge(.9)) +
+  geom_point(data=salted.highlight.300uE.gr[(salted.highlight.300uE.gr$Strain=="OE5-1")|(salted.highlight.300uE.gr$Strain=="OE6-2"),], mapping=aes(x=Mutants,y=growth.rate),size=0.001)+
+  scale_fill_manual(values=c("#F2D086","#E2CD89"))+
+  scale_color_manual(values=c("#F2D086","#E2CD89"))+
+  theme_bw(base_line_size=0.1) +
+  ylab(expression("Growth rate (h"^{-1} * ")"))+
+  annotate("text", x = 1, y = 0.13, 
+           label = "*",
+           size = 8 / .pt, color = "#22292F")+
+  theme(legend.position = "none",
+        axis.text.x = element_text(size=8 / .pt, angle=0),
+        axis.text.y = element_text(size=5 / .pt, angle=0),
+        panel.grid.major = element_line(size=0, linetype="blank",color="white"),
+        panel.grid.minor = element_line(size=0, linetype="blank",color="white"),
+        axis.title=element_text(size=8/.pt),
+        axis.ticks = element_line(size=0.1),
+        panel.background = element_rect(fill = "transparent", colour = "transparent"),
+        plot.background = element_rect(fill='transparent', color=NA))+
+    scale_y_continuous(expand = c(0,0), limits = c(0, 0.17)) 
+
+fused.OE56 <- ggdraw() +
+  draw_plot(salted.highlighted.plot56) +
+  draw_plot(OE.growth.rate.comparison.56, x = 0.23, y = .49, width = .45, height = .45)
+
+ggsave(filename = file.path("./image","20240815-salted-highlight-growthCurve-OE56.pdf"),plot = fused.OE56, device = "pdf", width = 4, height = 4, units = "cm")
+
+```
+```{r}
+salted.highlighted.plot57 <- 
+  ggplot(p4[((p4$Strain=="OE5-1")|(p4$Strain=="OE7-2"))&(p4$Time<24*3600),]) + 
+  theme_bw(base_line_size = 0.3) +
+  geom_point(aes(x=Time/3600, y=mean, color=Strain, fill=Strain),size=0.05) + 
+  geom_ribbon(aes(x=Time/3600, y=mean, ymin=lo, ymax=up, fill=Strain), alpha=0.5) +
+  ylab(bquote(bold(OD[bold("730")])))+
+  xlab("Time/h")+
+  scale_color_manual(values=c("#E99C93","#F1DBB9"))+
+  scale_fill_manual(values=c("#E99C93","#F1DBB9"))+
+  theme(legend.position = "none",
+        panel.grid.major = element_line(size=0.1, linetype="blank",color="white"),
+        panel.grid.minor = element_line(size=0.1, linetype="blank",color="white"),
+        axis.text=element_text(size=5),
+        axis.title=element_text(size=5,face="bold"),
+        axis.ticks = element_line(size=0.1))
+
+OE.growth.rate.comparison.57 <- 
+  ggplot()+
+  geom_col(data=salted.highlight.300uE.gr.stat[(salted.highlight.300uE.gr.stat$Strain=="OE5-1")|(salted.highlight.300uE.gr.stat$Strain=="OE7-2"),], mapping=aes(x= Mutants,y=gr.mean,width=0.5,alpha=0.3,fill=Strain))+
+  scale_fill_manual(values=c("#E99C93","#F1DBB9"))+
+  geom_errorbar(data=salted.highlight.300uE.gr.stat[(salted.highlight.300uE.gr.stat$Strain=="OE5-1")|(salted.highlight.300uE.gr.stat$Strain=="OE7-2"),],mapping=aes(x=Mutants, ymin=gr.mean-gr.sd, ymax=gr.mean+gr.sd,color=Strain), width=.3,position=position_dodge(.9)) +
+  geom_point(data=salted.highlight.300uE.gr[(salted.highlight.300uE.gr$Strain=="OE5-1")|(salted.highlight.300uE.gr$Strain=="OE7-2"),], mapping=aes(x=Mutants,y=growth.rate),size=0.001)+
+  scale_color_manual(values=c("#E99C93","#F1DBB9"))+
+  theme_bw(base_line_size=0.1) +
+  ylab("Groth rate /h")+
+  theme(legend.position = "none",
+        axis.text.x = element_text(size=8 / .pt, angle=0),
+        axis.text.y = element_text(size=5 / .pt, angle=0),
+        panel.grid.major = element_line(size=0, linetype="blank",color="white"),
+        panel.grid.minor = element_line(size=0, linetype="blank",color="white"),
+        axis.title=element_text(size=8/.pt,face="bold"),
+        axis.ticks = element_line(size=0.1),
+        panel.background = element_rect(fill = "transparent", colour = "transparent"),
+        plot.background = element_rect(fill='transparent', color=NA))+
+    scale_y_continuous(expand = c(0,0), limits = c(0, 0.17)) 
+
+fused.OE57 <- ggdraw() +
+  draw_plot(salted.highlighted.plot57) +
+  draw_plot(OE.growth.rate.comparison.57, x = 0.23, y = .49, width = .45, height = .45)
+
+ggsave(filename = file.path("./image","20240508-salted-highlight-growthCurve-OE57.pdf"),plot = fused.OE57, device = "pdf", width = 4, height = 4, units = "cm")
+```
+```{r}
+salted.highlighted.plot58 <- 
+  ggplot(p4[((p4$Strain=="OE5-1")|(p4$Strain=="OE8-2"))&(p4$Time<25*3600),]) + 
+  theme_bw(base_line_size = 0.3) +
+  geom_point(aes(x=Time/3600, y=mean, color=Strain, fill=Strain),size=0.05) + 
+  geom_ribbon(aes(x=Time/3600, y=mean, ymin=lo, ymax=up, fill=Strain), alpha=0.5) +
+  ylab(bquote(OD["730"]))+
+  xlab("Time (h)")+
+  ylim(c(0,0.4))+
+  scale_color_manual(values=c("#F2D086","#B1C07A"))+
+  scale_fill_manual(values=c("#F2D086","#B1C07A"))+
+  theme(legend.position = "none",
+        panel.grid.major = element_line(size=0.1, linetype="blank",color="white"),
+        panel.grid.minor = element_line(size=0.1, linetype="blank",color="white"),
+        axis.text=element_text(size=5),
+        axis.title=element_text(size=5),
+        axis.ticks = element_line(size=0.1))+
+  geom_segment(aes(x=25.5,xend=25.5,y=0.25,yend=0.33))+
+  annotate("text", x = 27, y = 0.285, 
+           label = "**",
+           size = 10 / .pt, color = "#22292F")
+
+OE.growth.rate.comparison.58 <- 
+  ggplot()+
+  geom_col(data=salted.highlight.300uE.gr.stat[(salted.highlight.300uE.gr.stat$Strain=="OE5-1")|(salted.highlight.300uE.gr.stat$Strain=="OE8-2"),], mapping=aes(x= Mutants,y=gr.mean,width=0.5,alpha=0.3,fill=Strain))+
+  scale_fill_manual(values=c("#F2D086","#B1C07A"))+
+  geom_errorbar(data=salted.highlight.300uE.gr.stat[(salted.highlight.300uE.gr.stat$Strain=="OE5-1")|(salted.highlight.300uE.gr.stat$Strain=="OE8-2"),],mapping=aes(x=Mutants, ymin=gr.mean-gr.sd, ymax=gr.mean+gr.sd,color=Strain), width=.3,position=position_dodge(.9)) +
+  scale_color_manual(values=c("#F2D086","#B1C07A"))+
+  geom_point(data=salted.highlight.300uE.gr[(salted.highlight.300uE.gr$Strain=="OE5-1")|(salted.highlight.300uE.gr$Strain=="OE8-2"),], mapping=aes(x=Mutants,y=growth.rate),size=0.001)+
+  theme_bw(base_line_size=0.1) +
+  ylab(expression("Growth rate (h"^{-1} *")"))+
+  annotate("text", x = 1, y = 0.13, 
+           label = "*",
+           size = 8 / .pt, color = "#22292F")+
+  theme(legend.position = "none",
+        axis.text.x = element_text(size=8 / .pt, angle=0),
+        axis.text.y = element_text(size=5 / .pt, angle=0),
+        panel.grid.major = element_line(size=0, linetype="blank",color="white"),
+        panel.grid.minor = element_line(size=0, linetype="blank",color="white"),
+        axis.title=element_text(size=8/.pt),
+        axis.ticks = element_line(size=0.1),
+        panel.background = element_rect(fill = "transparent", colour = "transparent"),
+        plot.background = element_rect(fill='transparent', color=NA))+
+    scale_y_continuous(expand = c(0,0), limits = c(0, 0.17)) 
+
+fused.OE58 <- ggdraw() +
+  draw_plot(salted.highlighted.plot58) +
+  draw_plot(OE.growth.rate.comparison.58, x = 0.23, y = .49, width = .45, height = .45)
+
+ggsave(filename = file.path("./image","20240815-salted-highlight-growthCurve-OE58.pdf"),plot = fused.OE58, device = "pdf", width = 4, height = 4, units = "cm")
+```
+```{r}
+salted.highlighted.plot59 <- 
+  ggplot(p4[((p4$Strain=="OE5-1")|(p4$Strain=="OE9-3"))&(p4$Time<25*3600),]) + 
+  theme_bw(base_line_size = 0.3) +
+  geom_point(aes(x=Time/3600, y=mean, color=Strain, fill=Strain),size=0.05) + 
+  geom_ribbon(aes(x=Time/3600, y=mean, ymin=lo, ymax=up, fill=Strain), alpha=0.5) +
+  ylab(bquote(OD["730"]))+
+  xlab("Time (h)")+
+  ylim(c(0,0.4))+
+  scale_color_manual(values=c("#F2D086","#95BE7E"))+
+  scale_fill_manual(values=c("#F2D086","#95BE7E"))+
+  theme(legend.position = "none",
+        panel.grid.major = element_line(size=0.1, linetype="blank",color="white"),
+        panel.grid.minor = element_line(size=0.1, linetype="blank",color="white"),
+        axis.text=element_text(size=5),
+        axis.title=element_text(size=5),
+        axis.ticks = element_line(size=0.1))+
+  geom_segment(aes(x=25.5,xend=25.5,y=0.25,yend=0.3))+
+  annotate("text", x = 26.5, y = 0.27, 
+           label = "*",
+           size = 10 / .pt, color = "#22292F")
+
+OE.growth.rate.comparison.59 <- 
+  ggplot()+
+  geom_col(data=salted.highlight.300uE.gr.stat[(salted.highlight.300uE.gr.stat$Strain=="OE5-1")|(salted.highlight.300uE.gr.stat$Strain=="OE9-3"),], mapping=aes(x= Mutants,y=gr.mean,width=0.5,alpha=0.3,fill=Strain))+
+  scale_fill_manual(values=c("#F2D086","#95BE7E"))+
+  geom_errorbar(data=salted.highlight.300uE.gr.stat[(salted.highlight.300uE.gr.stat$Strain=="OE5-1")|(salted.highlight.300uE.gr.stat$Strain=="OE9-3"),],mapping=aes(x=Mutants, ymin=gr.mean-gr.sd, ymax=gr.mean+gr.sd,color=Strain), width=.3,position=position_dodge(.9)) +
+  geom_point(data=salted.highlight.300uE.gr[(salted.highlight.300uE.gr$Strain=="OE5-1")|(salted.highlight.300uE.gr$Strain=="OE9-3"),], mapping=aes(x=Mutants,y=growth.rate),size=0.001)+
+  scale_color_manual(values=c("#F2D086","#95BE7E"))+
+  theme_bw(base_line_size=0.1) +
+  ylab(expression("Growth rate (h"^{-1}*")"))+
+  theme(legend.position = "none",
+        axis.text.x = element_text(size=8 / .pt, angle=0),
+        axis.text.y = element_text(size=5 / .pt, angle=0),
+        panel.grid.major = element_line(size=0, linetype="blank",color="white"),
+        panel.grid.minor = element_line(size=0, linetype="blank",color="white"),
+        axis.title=element_text(size=8/.pt),
+        axis.ticks = element_line(size=0.1),
+        panel.background = element_rect(fill = "transparent", colour = "transparent"),
+        plot.background = element_rect(fill='transparent', color=NA))+
+    scale_y_continuous(expand = c(0,0), limits = c(0, 0.17)) 
+
+fused.OE59 <- ggdraw() +
+  draw_plot(salted.highlighted.plot59) +
+  draw_plot(OE.growth.rate.comparison.59, x = 0.23, y = .49, width = .45, height = .45)
+
+ggsave(filename = file.path("./image","20240815-salted-highlight-growthCurve-OE59.pdf"),plot = fused.OE59, device = "pdf", width = 4, height = 4, units = "cm")
+```
+
+# 3. Load unsalted data under 300uE in multicultivator for data collected at 20240327 and 20240328:
+```{r}
+unsalted.highlight.300uE <- read.csv("OE-growth/20240329-OE-multicultivator-compilation-unsalted-highlight.csv",header=T)
+unsalted.highlight.300uE <- unsalted.highlight.300uE[unsalted.highlight.300uE$Time<=158400,]
+
+Time <- unsalted.highlight.300uE[(unsalted.highlight.300uE$Position=="1-1")&(unsalted.highlight.300uE$Batch=="20240327"),]$Time
+#Generate data for OE5-1
+OE5_1_1 <- unsalted.highlight.300uE[(unsalted.highlight.300uE$Strain=="OE5-1")&(unsalted.highlight.300uE$Position=="1-3")&(unsalted.highlight.300uE$Batch=="20240327"),]$OD730
+OE5_1_2 <- unsalted.highlight.300uE[(unsalted.highlight.300uE$Strain=="OE5-1")&(unsalted.highlight.300uE$Position=="1-6")&(unsalted.highlight.300uE$Batch=="20240327"),]$OD730
+OE5_1_3 <- unsalted.highlight.300uE[(unsalted.highlight.300uE$Strain=="OE5-1")&(unsalted.highlight.300uE$Position=="2-3")&(unsalted.highlight.300uE$Batch=="20240328"),]$OD730
+OE5_1_4 <- unsalted.highlight.300uE[(unsalted.highlight.300uE$Strain=="OE5-1")&(unsalted.highlight.300uE$Position=="2-6")&(unsalted.highlight.300uE$Batch=="20240328"),]$OD730
+OE5_1 <- data_frame(OE5_1_1,OE5_1_2,OE5_1_3,OE5_1_4)
+mean <- rowMeans(OE5_1)
+se <- apply(OE5_1, 1, std.error)
+up <- mean + se
+lo <- mean - se
+Strain <- as.factor(rep("OE5-1",265))
+OE5_1_plot <- data.frame(Time,mean,up,lo,Strain)
+#Generate data for OE6-1
+OE6_1_1 <- unsalted.highlight.300uE[(unsalted.highlight.300uE$Strain=="OE6-1")&(unsalted.highlight.300uE$Position=="2-1")&(unsalted.highlight.300uE$Batch=="20240328"),]$OD730
+OE6_1_2 <- unsalted.highlight.300uE[(unsalted.highlight.300uE$Strain=="OE6-1")&(unsalted.highlight.300uE$Position=="2-4")&(unsalted.highlight.300uE$Batch=="20240328"),]$OD730
+OE6_1_3 <- unsalted.highlight.300uE[(unsalted.highlight.300uE$Strain=="OE6-1")&(unsalted.highlight.300uE$Position=="2-7")&(unsalted.highlight.300uE$Batch=="20240328"),]$OD730
+OE6_1 <- data_frame(OE6_1_1,OE6_1_2,OE6_1_3)
+mean <- rowMeans(OE6_1)
+se <- apply(OE6_1, 1, std.error)
+up <- mean + se
+lo <- mean - se
+Strain <- as.factor(rep("OE6-1",265))
+OE6_1_plot <- data.frame(Time,mean,up,lo,Strain)
+#Generate data for OE7-2
+OE7_2_1 <- unsalted.highlight.300uE[(unsalted.highlight.300uE$Strain=="OE7-2")&(unsalted.highlight.300uE$Position=="2-2")&(unsalted.highlight.300uE$Batch=="20240328"),]$OD730
+OE7_2_2 <- unsalted.highlight.300uE[(unsalted.highlight.300uE$Strain=="OE7-2")&(unsalted.highlight.300uE$Position=="2-5")&(unsalted.highlight.300uE$Batch=="20240328"),]$OD730
+OE7_2_3 <- unsalted.highlight.300uE[(unsalted.highlight.300uE$Strain=="OE7-2")&(unsalted.highlight.300uE$Position=="2-8")&(unsalted.highlight.300uE$Batch=="20240328"),]$OD730
+OE7_2 <- data_frame(OE7_2_1,OE7_2_2,OE7_2_3)
+mean <- rowMeans(OE7_2)
+se <- apply(OE7_2, 1, std.error)
+up <- mean + se
+lo <- mean - se
+Strain <- as.factor(rep("OE7-2",265))
+OE7_2_plot <- data.frame(Time,mean,up,lo,Strain)
+#Generate data for OE8-1
+OE8_1_1 <- unsalted.highlight.300uE[(unsalted.highlight.300uE$Strain=="OE8-1")&(unsalted.highlight.300uE$Position=="1-1")&(unsalted.highlight.300uE$Batch=="20240327"),]$OD730
+OE8_1_2 <- unsalted.highlight.300uE[(unsalted.highlight.300uE$Strain=="OE8-1")&(unsalted.highlight.300uE$Position=="1-4")&(unsalted.highlight.300uE$Batch=="20240327"),]$OD730
+OE8_1_3 <- unsalted.highlight.300uE[(unsalted.highlight.300uE$Strain=="OE8-1")&(unsalted.highlight.300uE$Position=="1-7")&(unsalted.highlight.300uE$Batch=="20240327"),]$OD730
+OE8_1 <- data_frame(OE8_1_1,OE8_1_2,OE8_1_3)
+mean <- rowMeans(OE8_1)
+se <- apply(OE8_1, 1, std.error)
+up <- mean + se
+lo <- mean - se
+Strain <- as.factor(rep("OE8-1",265))
+OE8_1_plot <- data.frame(Time,mean,up,lo,Strain)
+#Generate data for OE9-3
+OE9_3_1 <- unsalted.highlight.300uE[(unsalted.highlight.300uE$Strain=="OE9-3")&(unsalted.highlight.300uE$Position=="1-2")&(unsalted.highlight.300uE$Batch=="20240327"),]$OD730
+OE9_3_2 <- unsalted.highlight.300uE[(unsalted.highlight.300uE$Strain=="OE9-3")&(unsalted.highlight.300uE$Position=="1-5")&(unsalted.highlight.300uE$Batch=="20240327"),]$OD730
+OE9_3_3 <- unsalted.highlight.300uE[(unsalted.highlight.300uE$Strain=="OE9-3")&(unsalted.highlight.300uE$Position=="1-8")&(unsalted.highlight.300uE$Batch=="20240327"),]$OD730
+OE9_3 <- data_frame(OE9_3_1,OE9_3_2,OE9_3_3)
+mean <- rowMeans(OE9_3)
+se <- apply(OE9_3, 1, std.error)
+up <- mean + se
+lo <- mean - se
+Strain <- as.factor(rep("OE9-3",265))
+OE9_3_plot <- data.frame(Time,mean,up,lo,Strain)
+p3 <- rbind(OE5_1_plot,OE6_1_plot,OE7_2_plot,OE8_1_plot,OE9_3_plot)
+```
+Calculate the growth rate:
+```{r}
+unsalted.highlight.300uE.gr <- unsalted.highlight.300uE[(unsalted.highlight.300uE$Time>=8*3600)&(unsalted.highlight.300uE$Time<=18*3600),] %>% mutate(LOG=log(as.numeric(OD730))) %>% mutate(Time=Time/3600) %>% group_by(Position) %>% summarise(growth.rate=lm(LOG~Time)$coefficient[2]) %>% inner_join(select(unsalted.highlight.300uE,Time,Strain,Position) %>% filter(Time==0))  %>% mutate(Mutants=ifelse(Strain=="OE5-1","WT",ifelse(Strain=="OE6-1","I358N",ifelse(Strain=="OE7-2","T354P",ifelse(Strain=="OE8-1","H359N",ifelse(Strain=="OE9-3","L353F",NA))))))
+
+unsalted.highlight.300uE.gr.stat <- unsalted.highlight.300uE.gr %>% group_by(Strain) %>%  summarise(gr.mean=mean(growth.rate),gr.sd=sd(growth.rate)) %>% mutate(Mutants=ifelse(Strain=="OE5-1","WT",ifelse(Strain=="OE6-1","I358N",ifelse(Strain=="OE7-2","T354P",ifelse(Strain=="OE8-1","H359N",ifelse(Strain=="OE9-3","L353F",NA))))))
+```
+T test:
+```{r}
+#t test on growth rate
+t.test(unsalted.highlight.300uE.gr[unsalted.highlight.300uE.gr$Strain=="OE5-1",]$growth.rate,unsalted.highlight.300uE.gr[unsalted.highlight.300uE.gr$Strain=="OE6-1",]$growth.rate)
+t.test(unsalted.highlight.300uE.gr[unsalted.highlight.300uE.gr$Strain=="OE5-1",]$growth.rate,unsalted.highlight.300uE.gr[unsalted.highlight.300uE.gr$Strain=="OE8-1",]$growth.rate)
+t.test(unsalted.highlight.300uE.gr[unsalted.highlight.300uE.gr$Strain=="OE5-1",]$growth.rate,unsalted.highlight.300uE.gr[unsalted.highlight.300uE.gr$Strain=="OE9-3",]$growth.rate)
+#t test on terminal OD at 25h under light stress
+t.test(as.numeric(unsalted.highlight.300uE[(unsalted.highlight.300uE$Strain=="OE5-1")&(unsalted.highlight.300uE$Time==25*3600),]$OD730),as.numeric(unsalted.highlight.300uE[(unsalted.highlight.300uE$Strain=="OE6-1")&(unsalted.highlight.300uE$Time==25*3600),]$OD730))
+t.test(as.numeric(unsalted.highlight.300uE[(unsalted.highlight.300uE$Strain=="OE5-1")&(unsalted.highlight.300uE$Time==25*3600),]$OD730),as.numeric(unsalted.highlight.300uE[(unsalted.highlight.300uE$Strain=="OE8-1")&(unsalted.highlight.300uE$Time==25*3600),]$OD730))
+t.test(as.numeric(unsalted.highlight.300uE[(unsalted.highlight.300uE$Strain=="OE5-1")&(unsalted.highlight.300uE$Time==25*3600),]$OD730),as.numeric(unsalted.highlight.300uE[(salted.highlight.300uE$Strain=="OE9-3")&(unsalted.highlight.300uE$Time==25*3600),]$OD730))
+```
+Plotting:
+```{r}
+unsalted.highlighted.plot56 <- 
+  ggplot(p3[((p3$Strain=="OE5-1")|(p3$Strain=="OE6-1"))&(p3$Time<25*3600),]) + 
+  theme_bw(base_line_size = 0.3) +
+  geom_point(aes(x=Time/3600, y=mean, color=Strain, fill=Strain),size=0.05) + 
+  geom_ribbon(aes(x=Time/3600, y=mean, ymin=lo, ymax=up, fill=Strain), alpha=0.5) +
+  ylab(bquote(OD["730"]))+
+  xlab("Time (h)")+
+  ylim(c(0,0.5))+
+  scale_color_manual(values=c("#F2D086","#E2CD89"))+
+  scale_fill_manual(values=c("#F2D086","#E2CD89"))+
+  theme(legend.position = "none",
+        panel.grid.major = element_line(size=0.1, linetype="blank",color="white"),
+        panel.grid.minor = element_line(size=0.1, linetype="blank",color="white"),
+        axis.text=element_text(size=5),
+        axis.title=element_text(size=5),
+        axis.ticks = element_line(size=0.1))+
+  geom_segment(aes(x=25.5,xend=25.5,y=0.43,yend=0.39))+
+  annotate("text", x = 27, y = 0.40, 
+           label = "*",
+           size = 10 / .pt, color = "#22292F")
+
+OE.growth.rate.comparison.56 <- 
+  ggplot()+
+  geom_col(data=unsalted.highlight.300uE.gr.stat[(unsalted.highlight.300uE.gr.stat$Strain=="OE5-1")|(unsalted.highlight.300uE.gr.stat$Strain=="OE6-1"),], mapping=aes(x= Mutants,y=gr.mean,width=0.5,alpha=0.3,fill=Strain))+
+  scale_fill_manual(values=c("#F2D086","#E2CD89"))+
+  geom_errorbar(data=unsalted.highlight.300uE.gr.stat[(unsalted.highlight.300uE.gr.stat$Strain=="OE5-1")|(unsalted.highlight.300uE.gr.stat$Strain=="OE6-1"),],mapping=aes(x=Mutants, ymin=gr.mean-gr.sd, ymax=gr.mean+gr.sd,color=Strain), width=.3,position=position_dodge(.9)) +
+  geom_point(data=unsalted.highlight.300uE.gr[(unsalted.highlight.300uE.gr$Strain=="OE5-1")|(unsalted.highlight.300uE.gr$Strain=="OE6-1"),], mapping=aes(x=Mutants,y=growth.rate),size=0.001)+
+  scale_color_manual(values=c("#F2D086","#E2CD89"))+
+  theme_bw(base_line_size=0.1) +
+  ylab(expression("Growth rate (h"^{-1}*")"))+
+  theme(legend.position = "none",
+        axis.text.x = element_text(size=8 / .pt, angle=0),
+        axis.text.y = element_text(size=5 / .pt, angle=0),
+        panel.grid.major = element_line(size=0, linetype="blank",color="white"),
+        panel.grid.minor = element_line(size=0, linetype="blank",color="white"),
+        axis.title=element_text(size=8/.pt),
+        axis.ticks = element_line(size=0.1),
+        panel.background = element_rect(fill = "transparent", colour = "transparent"),
+        plot.background = element_rect(fill='transparent', color=NA))+
+    scale_y_continuous(expand = c(0,0), limits = c(0, 0.17)) 
+
+fused.OE56 <- ggdraw() +
+  draw_plot(unsalted.highlighted.plot56) +
+  draw_plot(OE.growth.rate.comparison.56, x = 0.23, y = .49, width = .45, height = .45)
+
+ggsave(filename = file.path("./image","20240815-unsalted-highlight-growthCurve-OE56.pdf"),plot = fused.OE56, device = "pdf", width = 4, height = 4, units = "cm")
+```
+```{r}
+unsalted.highlighted.plot57 <- 
+  ggplot(p3[((p3$Strain=="OE5-1")|(p3$Strain=="OE7-2"))&(p3$Time<24*3600),]) + 
+  theme_bw(base_line_size = 0.3) +
+  geom_point(aes(x=Time/3600, y=mean, color=Strain, fill=Strain),size=0.05) + 
+  geom_ribbon(aes(x=Time/3600, y=mean, ymin=lo, ymax=up, fill=Strain), alpha=0.5) +
+  ylab(bquote(bold(OD[bold("730")])))+
+  xlab("Time/h")+
+  scale_color_manual(values=c("#E99C93","#F1DBB9"))+
+  scale_fill_manual(values=c("#E99C93","#F1DBB9"))+
+  theme(legend.position = "none",
+        panel.grid.major = element_line(size=0.1, linetype="blank",color="white"),
+        panel.grid.minor = element_line(size=0.1, linetype="blank",color="white"),
+        axis.text=element_text(size=5),
+        axis.title=element_text(size=5,face="bold"),
+        axis.ticks = element_line(size=0.1))
+
+OE.growth.rate.comparison.57 <- 
+  ggplot()+
+  geom_col(data=unsalted.highlight.300uE.gr.stat[(unsalted.highlight.300uE.gr.stat$Strain=="OE5-1")|(unsalted.highlight.300uE.gr.stat$Strain=="OE7-2"),], mapping=aes(x= Mutants,y=gr.mean,width=0.5,alpha=0.3,fill=Strain))+
+  scale_fill_manual(values=c("#E99C93","#F1DBB9"))+
+  geom_errorbar(data=unsalted.highlight.300uE.gr.stat[(unsalted.highlight.300uE.gr.stat$Strain=="OE5-1")|(unsalted.highlight.300uE.gr.stat$Strain=="OE7-2"),],mapping=aes(x=Mutants, ymin=gr.mean-gr.sd, ymax=gr.mean+gr.sd,color=Strain), width=.3,position=position_dodge(.9)) +
+  geom_point(data=unsalted.highlight.300uE.gr[(unsalted.highlight.300uE.gr$Strain=="OE5-1")|(unsalted.highlight.300uE.gr$Strain=="OE7-2"),], mapping=aes(x=Mutants,y=growth.rate),size=0.001)+
+  scale_color_manual(values=c("#E99C93","#F1DBB9"))+
+  theme_bw(base_line_size=0.1) +
+  ylab("Groth rate /h")+
+  theme(legend.position = "none",
+        axis.text.x = element_text(size=8 / .pt, angle=0),
+        axis.text.y = element_text(size=5 / .pt, angle=0),
+        panel.grid.major = element_line(size=0, linetype="blank",color="white"),
+        panel.grid.minor = element_line(size=0, linetype="blank",color="white"),
+        axis.title=element_text(size=8/.pt,face="bold"),
+        axis.ticks = element_line(size=0.1),
+        panel.background = element_rect(fill = "transparent", colour = "transparent"),
+        plot.background = element_rect(fill='transparent', color=NA))+
+    scale_y_continuous(expand = c(0,0), limits = c(0, 0.17)) 
+
+fused.OE57 <- ggdraw() +
+  draw_plot(unsalted.highlighted.plot57) +
+  draw_plot(OE.growth.rate.comparison.57, x = 0.23, y = .49, width = .45, height = .45)
+
+ggsave(filename = file.path("./image","20240415-unsalted-highlight-growthCurve-OE57.pdf"),plot = fused.OE57, device = "pdf", width = 4, height = 4, units = "cm")
+```
+```{r}
+unsalted.highlighted.plot58 <- 
+  ggplot(p3[((p3$Strain=="OE5-1")|(p3$Strain=="OE8-1"))&(p3$Time<25*3600),]) + 
+  theme_bw(base_line_size = 0.3) +
+  geom_point(aes(x=Time/3600, y=mean, color=Strain, fill=Strain),size=0.05) + 
+  geom_ribbon(aes(x=Time/3600, y=mean, ymin=lo, ymax=up, fill=Strain), alpha=0.5) +
+  ylab(bquote(OD["730"]))+
+  xlab("Time (h)")+
+  ylim(c(0,0.5))+
+  scale_color_manual(values=c("#F2D086","#B1C07A"))+
+  scale_fill_manual(values=c("#F2D086","#B1C07A"))+
+  theme(legend.position = "none",
+        panel.grid.major = element_line(size=0.1, linetype="blank",color="white"),
+        panel.grid.minor = element_line(size=0.1, linetype="blank",color="white"),
+        axis.text=element_text(size=5),
+        axis.title=element_text(size=5),
+        axis.ticks = element_line(size=0.1))
+
+OE.growth.rate.comparison.58 <- 
+  ggplot()+
+  geom_col(data=unsalted.highlight.300uE.gr.stat[(unsalted.highlight.300uE.gr.stat$Strain=="OE5-1")|(unsalted.highlight.300uE.gr.stat$Strain=="OE8-1"),], mapping=aes(x= Mutants,y=gr.mean,width=0.5,alpha=0.3,fill=Strain))+
+  scale_fill_manual(values=c("#F2D086","#B1C07A"))+
+  geom_errorbar(data=unsalted.highlight.300uE.gr.stat[(unsalted.highlight.300uE.gr.stat$Strain=="OE5-1")|(unsalted.highlight.300uE.gr.stat$Strain=="OE8-1"),],mapping=aes(x=Mutants, ymin=gr.mean-gr.sd, ymax=gr.mean+gr.sd,color=Strain), width=.3,position=position_dodge(.9)) +
+  geom_point(data=unsalted.highlight.300uE.gr[(unsalted.highlight.300uE.gr$Strain=="OE5-1")|(unsalted.highlight.300uE.gr$Strain=="OE8-1"),], mapping=aes(x=Mutants,y=growth.rate),size=0.001)+
+  scale_color_manual(values=c("#F2D086","#B1C07A"))+
+  theme_bw(base_line_size=0.1) +
+  ylab(expression("Growth rate (h"^{-1}*")"))+
+  annotate("text", x = 1, y = 0.13, 
+           label = "*",
+           size = 8 / .pt, color = "#22292F")+
+  theme(legend.position = "none",
+        axis.text.x = element_text(size=8 / .pt, angle=0),
+        axis.text.y = element_text(size=5 / .pt, angle=0),
+        panel.grid.major = element_line(size=0, linetype="blank",color="white"),
+        panel.grid.minor = element_line(size=0, linetype="blank",color="white"),
+        axis.title=element_text(size=8/.pt),
+        axis.ticks = element_line(size=0.1),
+        panel.background = element_rect(fill = "transparent", colour = "transparent"),
+        plot.background = element_rect(fill='transparent', color=NA))+
+    scale_y_continuous(expand = c(0,0), limits = c(0, 0.17)) 
+
+fused.OE58 <- ggdraw() +
+  draw_plot(unsalted.highlighted.plot58) +
+  draw_plot(OE.growth.rate.comparison.58, x = 0.23, y = .49, width = .45, height = .45)
+
+ggsave(filename = file.path("./image","20240815-unsalted-highlight-growthCurve-OE58.pdf"),plot = fused.OE58, device = "pdf", width = 4, height = 4, units = "cm")
+```
+```{r}
+unsalted.highlighted.plot59 <- 
+  ggplot(p3[((p3$Strain=="OE5-1")|(p3$Strain=="OE9-3"))&(p3$Time<25*3600),]) + 
+  theme_bw(base_line_size = 0.3) +
+  geom_point(aes(x=Time/3600, y=mean, color=Strain, fill=Strain),size=0.05) + 
+  geom_ribbon(aes(x=Time/3600, y=mean, ymin=lo, ymax=up, fill=Strain), alpha=0.5) +
+  ylab(bquote(OD["730"]))+
+  xlab("Time (h)")+
+  ylim(c(0,0.5))+
+  scale_color_manual(values=c("#F2D086","#95BE7E"))+
+  scale_fill_manual(values=c("#F2D086","#95BE7E"))+
+  theme(legend.position = "none",
+        panel.grid.major = element_line(size=0.1, linetype="blank",color="white"),
+        panel.grid.minor = element_line(size=0.1, linetype="blank",color="white"),
+        axis.text=element_text(size=5),
+        axis.title=element_text(size=5),
+        axis.ticks = element_line(size=0.1))+
+  geom_segment(aes(x=25.5,xend=25.5,y=0.47,yend=0.43))+
+  annotate("text", x = 27, y = 0.44, 
+           label = "*",
+           size = 10 / .pt, color = "#22292F")
+
+OE.growth.rate.comparison.59 <- 
+  ggplot()+
+  geom_col(data=unsalted.highlight.300uE.gr.stat[(unsalted.highlight.300uE.gr.stat$Strain=="OE5-1")|(unsalted.highlight.300uE.gr.stat$Strain=="OE9-3"),], mapping=aes(x= Mutants,y=gr.mean,width=0.5,alpha=0.3,fill=Strain))+
+  scale_fill_manual(values=c("#F2D086","#95BE7E"))+
+  geom_errorbar(data=unsalted.highlight.300uE.gr.stat[(unsalted.highlight.300uE.gr.stat$Strain=="OE5-1")|(unsalted.highlight.300uE.gr.stat$Strain=="OE9-3"),],mapping=aes(x=Mutants, ymin=gr.mean-gr.sd, ymax=gr.mean+gr.sd,color=Strain), width=.3,position=position_dodge(.9)) +
+  scale_color_manual(values=c("#F2D086","#95BE7E"))+
+  geom_point(data=unsalted.highlight.300uE.gr[(unsalted.highlight.300uE.gr$Strain=="OE5-1")|(unsalted.highlight.300uE.gr$Strain=="OE9-3"),], mapping=aes(x=Mutants,y=growth.rate),size=0.001)+
+  theme_bw(base_line_size=0.1) +
+  ylab(expression("Growth rate (h"^{-1}*")"))+
+  annotate("text", x = 1, y = 0.13, 
+           label = "*",
+           size = 8 / .pt, color = "#22292F")+
+  theme(legend.position = "none",
+        axis.text.x = element_text(size=8 / .pt, angle=0),
+        axis.text.y = element_text(size=5 / .pt, angle=0),
+        panel.grid.major = element_line(size=0, linetype="blank",color="white"),
+        panel.grid.minor = element_line(size=0, linetype="blank",color="white"),
+        axis.title=element_text(size=8/.pt),
+        axis.ticks = element_line(size=0.1),
+        panel.background = element_rect(fill = "transparent", colour = "transparent"),
+        plot.background = element_rect(fill='transparent', color=NA))+
+    scale_y_continuous(expand = c(0,0), limits = c(0, 0.17)) 
+
+fused.OE59 <- ggdraw() +
+  draw_plot(unsalted.highlighted.plot59) +
+  draw_plot(OE.growth.rate.comparison.59, x = 0.23, y = .49, width = .45, height = .45)
+
+ggsave(filename = file.path("./image","20240815-unsalted-highlight-growthCurve-OE59.pdf"),plot = fused.OE59, device = "pdf", width = 4, height = 4, units = "cm")
+```
+
+# 4. Load salted data under 100uE in multicultivator for data collected at 20240401:
+```{r}
+salted.lowlight.100uE <- read.csv("OE-growth/20240317-20240324-OE-multicultivator-compilation-salted-lowlight.csv",header=T)
+
+Time <- salted.lowlight.100uE[(salted.lowlight.100uE$Position=="1-1")&(salted.lowlight.100uE$Batch=="3242024"),]$Time
+#Generate data for OE5-1
+OE5_1_1 <- salted.lowlight.100uE[(salted.lowlight.100uE$Strain=="OE5-1")&(salted.lowlight.100uE$Position=="1-3")&(salted.lowlight.100uE$Batch=="3172024"),]$OD730
+OE5_1_2 <- salted.lowlight.100uE[(salted.lowlight.100uE$Strain=="OE5-1")&(salted.lowlight.100uE$Position=="1-6")&(salted.lowlight.100uE$Batch=="3172024"),]$OD730
+OE5_1_3 <- salted.lowlight.100uE[(salted.lowlight.100uE$Strain=="OE5-1")&(salted.lowlight.100uE$Position=="1-3")&(salted.lowlight.100uE$Batch=="3242024"),]$OD730
+OE5_1_4 <- salted.lowlight.100uE[(salted.lowlight.100uE$Strain=="OE5-1")&(salted.lowlight.100uE$Position=="1-6")&(salted.lowlight.100uE$Batch=="3242024"),]$OD730
+OE5_1 <- data_frame(OE5_1_1,OE5_1_2,OE5_1_3,OE5_1_4)
+mean <- rowMeans(OE5_1)
+se <- apply(OE5_1, 1, std.error)
+up <- mean + se
+lo <- mean - se
+Strain <- as.factor(rep("OE5-1",470))
+OE5_1_plot <- data.frame(Time,mean,up,lo,Strain)
+#Generate data for OE6-2
+OE6_2_1 <- salted.lowlight.100uE[(salted.lowlight.100uE$Strain=="OE6-2")&(salted.lowlight.100uE$Position=="1-1")&(salted.lowlight.100uE$Batch=="3242024"),]$OD730
+OE6_2_2 <- salted.lowlight.100uE[(salted.lowlight.100uE$Strain=="OE6-2")&(salted.lowlight.100uE$Position=="1-4")&(salted.lowlight.100uE$Batch=="3242024"),]$OD730
+OE6_2_3 <- salted.lowlight.100uE[(salted.lowlight.100uE$Strain=="OE6-2")&(salted.lowlight.100uE$Position=="1-7")&(salted.lowlight.100uE$Batch=="3242024"),]$OD730
+OE6_2 <- data_frame(OE6_2_1,OE6_2_2,OE6_2_3)
+mean <- rowMeans(OE6_2)
+se <- apply(OE6_2, 1, std.error)
+up <- mean + se
+lo <- mean - se
+Strain <- as.factor(rep("OE6-2",470))
+OE6_2_plot <- data.frame(Time,mean,up,lo,Strain)
+#Generate data for OE7-2
+OE7_2_1 <- salted.lowlight.100uE[(salted.lowlight.100uE$Strain=="OE7-2")&(salted.lowlight.100uE$Position=="1-2")&(salted.lowlight.100uE$Batch=="3242024"),]$OD730
+OE7_2_2 <- salted.lowlight.100uE[(salted.lowlight.100uE$Strain=="OE7-2")&(salted.lowlight.100uE$Position=="1-5")&(salted.lowlight.100uE$Batch=="3242024"),]$OD730
+OE7_2_3 <- salted.lowlight.100uE[(salted.lowlight.100uE$Strain=="OE7-2")&(salted.lowlight.100uE$Position=="1-8")&(salted.lowlight.100uE$Batch=="3242024"),]$OD730
+OE7_2 <- data_frame(OE7_2_1,OE7_2_2,OE7_2_3)
+mean <- rowMeans(OE7_2)
+se <- apply(OE7_2, 1, std.error)
+up <- mean + se
+lo <- mean - se
+Strain <- as.factor(rep("OE7-2",470))
+OE7_2_plot <- data.frame(Time,mean,up,lo,Strain)
+#Generate data for OE8-2
+OE8_2_1 <- salted.lowlight.100uE[(salted.lowlight.100uE$Strain=="OE8-2")&(salted.lowlight.100uE$Position=="1-1")&(salted.lowlight.100uE$Batch=="3172024"),]$OD730
+OE8_2_2 <- salted.lowlight.100uE[(salted.lowlight.100uE$Strain=="OE8-2")&(salted.lowlight.100uE$Position=="1-4")&(salted.lowlight.100uE$Batch=="3172024"),]$OD730
+OE8_2_3 <- salted.lowlight.100uE[(salted.lowlight.100uE$Strain=="OE8-2")&(salted.lowlight.100uE$Position=="1-7")&(salted.lowlight.100uE$Batch=="3172024"),]$OD730
+OE8_2 <- data_frame(OE8_2_1,OE8_2_2,OE8_2_3)
+mean <- rowMeans(OE8_2)
+se <- apply(OE8_2, 1, std.error)
+up <- mean + se
+lo <- mean - se
+Strain <- as.factor(rep("OE8-2",470))
+OE8_2_plot <- data.frame(Time,mean,up,lo,Strain)
+#Generate data for OE9-3
+OE9_3_1 <- salted.lowlight.100uE[(salted.lowlight.100uE$Strain=="OE9-3")&(salted.lowlight.100uE$Position=="1-2")&(salted.lowlight.100uE$Batch=="3172024"),]$OD730
+OE9_3_2 <- salted.lowlight.100uE[(salted.lowlight.100uE$Strain=="OE9-3")&(salted.lowlight.100uE$Position=="1-5")&(salted.lowlight.100uE$Batch=="3172024"),]$OD730
+OE9_3_3 <- salted.lowlight.100uE[(salted.lowlight.100uE$Strain=="OE9-3")&(salted.lowlight.100uE$Position=="1-8")&(salted.lowlight.100uE$Batch=="3172024"),]$OD730
+OE9_3 <- data_frame(OE9_3_1,OE9_3_2,OE9_3_3)
+mean <- rowMeans(OE9_3)
+se <- apply(OE9_3, 1, std.error)
+up <- mean + se
+lo <- mean - se
+Strain <- as.factor(rep("OE9-3",470))
+OE9_3_plot <- data.frame(Time,mean,up,lo,Strain)
+
+p2 <- rbind(OE5_1_plot,OE6_2_plot,OE7_2_plot,OE8_2_plot,OE9_3_plot)
+```
+```{r}
+ggplot(p2[p2$Time<=72*3600,]) + 
+  theme_bw() +
+  geom_point(aes(x=Time/3600, y=mean, color=Strain, fill=Strain),size=0.5) + 
+  geom_ribbon(aes(x=Time/3600, y=mean, ymin=lo, ymax=up, fill=Strain), alpha=0.35) +
+  ylab("OD730")+
+  xlab("Time/h")+
+  scale_color_manual(values=c("#E99C93","#9FACD3","#D9D1E3","#F1DBB9","#D0E2E8"))+
+  scale_fill_manual(values=c("#E99C93","#9FACD3","#D9D1E3","#F1DBB9","#D0E2E8"))+
+  theme(legend.position = c(0.9,0.25),axis.text.x = element_text(size=7.5, angle=90),
+        panel.grid.major = element_line(size=0, linetype="blank",color="white"),
+        panel.grid.minor = element_line(size=0, linetype="blank",color="white"))
+```
+Calculate the growth rate:
+```{r}
+salted.lowlight.100uE.gr <- salted.lowlight.100uE[(salted.lowlight.100uE$Time>=36*3600)&(salted.lowlight.100uE$Time<=48*3600),] %>% mutate(LOG=log(as.numeric(OD730))) %>% mutate(Time=Time/3600) %>% group_by(Position) %>% summarise(growth.rate=lm(LOG~Time)$coefficient[2]) %>% inner_join(select(salted.lowlight.100uE,Time,Strain,Position) %>% filter(Time==0))  %>% mutate(Mutants=ifelse(Strain=="OE5-1","WT",ifelse(Strain=="OE6-2","I358N",ifelse(Strain=="OE7-2","T354P",ifelse(Strain=="OE8-2","H359N",ifelse(Strain=="OE9-3","L353F",NA))))))
+
+salted.lowlight.100uE.gr.stat <- salted.lowlight.100uE.gr %>% group_by(Strain) %>%  summarise(gr.mean=mean(growth.rate),gr.sd=sd(growth.rate)) %>% mutate(Mutants=ifelse(Strain=="OE5-1","WT",ifelse(Strain=="OE6-2","I358N",ifelse(Strain=="OE7-2","T354P",ifelse(Strain=="OE8-2","H359N",ifelse(Strain=="OE9-3","L353F",NA))))))
+```
+T test:
+```{r}
+#growth rate
+t.test(salted.lowlight.100uE.gr[salted.lowlight.100uE.gr$Strain=="OE5-1",]$growth.rate,salted.lowlight.100uE.gr[salted.lowlight.100uE.gr$Strain=="OE6-2",]$growth.rate)
+#t.test(salted.lowlight.100uE.gr[salted.lowlight.100uE.gr$Strain=="OE5-1",]$growth.rate,salted.lowlight.100uE.gr[salted.lowlight.100uE.gr$Strain=="OE7-2",]$growth.rate)
+t.test(salted.lowlight.100uE.gr[salted.lowlight.100uE.gr$Strain=="OE5-1",]$growth.rate,salted.lowlight.100uE.gr[salted.lowlight.100uE.gr$Strain=="OE8-2",]$growth.rate)
+t.test(salted.lowlight.100uE.gr[salted.lowlight.100uE.gr$Strain=="OE5-1",]$growth.rate,salted.lowlight.100uE.gr[salted.lowlight.100uE.gr$Strain=="OE9-3",]$growth.rate)
+
+#t test on terminal OD at 25h under light stress
+t.test(as.numeric(salted.lowlight.100uE[(salted.lowlight.100uE$Strain=="OE5-1")&(salted.lowlight.100uE$Time==72*3600),]$OD730),as.numeric(salted.lowlight.100uE[(salted.lowlight.100uE$Strain=="OE6-2")&(salted.lowlight.100uE$Time==72*3600),]$OD730))
+t.test(as.numeric(salted.lowlight.100uE[(salted.lowlight.100uE$Strain=="OE5-1")&(salted.lowlight.100uE$Time==72*3600),]$OD730),as.numeric(salted.lowlight.100uE[(salted.lowlight.100uE$Strain=="OE8-2")&(salted.lowlight.100uE$Time==72*3600),]$OD730))
+t.test(as.numeric(salted.lowlight.100uE[(salted.lowlight.100uE$Strain=="OE5-1")&(salted.lowlight.100uE$Time==72*3600),]$OD730),as.numeric(salted.lowlight.100uE[(salted.lowlight.100uE$Strain=="OE9-3")&(salted.lowlight.100uE$Time==72*3600),]$OD730))
+```
+Plotting:
+```{r}
+salted.lowlight.plot56 <- 
+  ggplot(p2[((p2$Strain=="OE5-1")|(p2$Strain=="OE6-2"))&(p2$Time<72*3600),]) + 
+  theme_bw(base_line_size = 0.3) +
+  geom_point(aes(x=Time/3600, y=mean, color=Strain, fill=Strain),size=0.01) + 
+  geom_ribbon(aes(x=Time/3600, y=mean, ymin=lo, ymax=up, fill=Strain), alpha=0.5) +
+  ylab(bquote(OD["730"]))+
+  xlab("Time (h)")+
+  ylim(c(0,0.8))+
+  scale_color_manual(values=c("#F2D086","#E2CD89"))+
+  scale_fill_manual(values=c("#F2D086","#E2CD89"))+
+  theme(legend.position = "none",
+        panel.grid.major = element_line(size=0.1, linetype="blank",color="white"),
+        panel.grid.minor = element_line(size=0.1, linetype="blank",color="white"),
+        axis.text=element_text(size=5),
+        axis.title=element_text(size=5),
+        axis.ticks = element_line(size=0.1))+
+  geom_segment(aes(x=74,xend=74,y=0.6,yend=0.76))+
+  annotate("text", x = 67, y = 0.66, 
+           label = "***",
+           size = 10 / .pt, color = "#22292F")
+
+OE.growth.rate.comparison.56 <- 
+  ggplot()+
+  geom_col(data=salted.lowlight.100uE.gr.stat[(salted.lowlight.100uE.gr.stat$Strain=="OE5-1")|(salted.lowlight.100uE.gr.stat$Strain=="OE6-2"),], mapping=aes(x= Mutants,y=gr.mean,width=0.5,alpha=0.3,fill=Strain))+
+  scale_fill_manual(values=c("#F2D086","#E2CD89"))+
+  geom_errorbar(data=salted.lowlight.100uE.gr.stat[(salted.lowlight.100uE.gr.stat$Strain=="OE5-1")|(salted.lowlight.100uE.gr.stat$Strain=="OE6-2"),],mapping=aes(x=Mutants, ymin=gr.mean-gr.sd, ymax=gr.mean+gr.sd,color=Strain), width=.3,position=position_dodge(.9)) +
+  geom_point(data=salted.lowlight.100uE.gr[(salted.lowlight.100uE.gr$Strain=="OE5-1")|(salted.lowlight.100uE.gr$Strain=="OE6-2"),], mapping=aes(x=Mutants,y=growth.rate),size=0.001)+
+  scale_color_manual(values=c("#F2D086","#E2CD89"))+
+  theme_bw(base_line_size=0.1) +
+  ylab(expression("Growth rate /h"^{-1}*")"))+
+  annotate("text", x = 1, y = 0.04, 
+           label = "**",
+           size = 8 / .pt, color = "#22292F")+
+  theme(legend.position = "none",
+        axis.text.x = element_text(size=8 / .pt, angle=0),
+        axis.text.y = element_text(size=5 / .pt, angle=0),
+        panel.grid.major = element_line(size=0, linetype="blank",color="white"),
+        panel.grid.minor = element_line(size=0, linetype="blank",color="white"),
+        axis.title=element_text(size=8/.pt),
+        axis.ticks = element_line(size=0.1),
+        panel.background = element_rect(fill = "transparent", colour = "transparent"),
+        plot.background = element_rect(fill='transparent', color=NA))+
+    scale_y_continuous(expand = c(0,0), limits = c(0, 0.05)) 
+
+fused.OE56 <- ggdraw() +
+  draw_plot(salted.lowlight.plot56) +
+  draw_plot(OE.growth.rate.comparison.56, x = 0.23, y = .49, width = .45, height = .45)
+
+ggsave(filename = file.path("./image","20240815-salted-lowlight-growthCurve-OE56.pdf"),plot = fused.OE56, device = "pdf", width = 4, height = 4, units = "cm")
+
+```
+```{r}
+salted.lowlight.plot57 <- 
+  ggplot(p2[((p2$Strain=="OE5-1")|(p2$Strain=="OE7-2"))&(p2$Time<72*3600),]) + 
+  theme_bw(base_line_size = 0.3) +
+  geom_point(aes(x=Time/3600, y=mean, color=Strain, fill=Strain),size=0.05) + 
+  geom_ribbon(aes(x=Time/3600, y=mean, ymin=lo, ymax=up, fill=Strain), alpha=0.5) +
+  ylab(bquote(bold(OD[bold("730")])))+
+  scale_color_manual(values=c("#E99C93","#F1DBB9"))+
+  scale_fill_manual(values=c("#E99C93","#F1DBB9"))+
+  theme(legend.position = "none",
+        panel.grid.major = element_line(size=0.1, linetype="blank",color="white"),
+        panel.grid.minor = element_line(size=0.1, linetype="blank",color="white"),
+        axis.text=element_text(size=5),
+        axis.title=element_text(size=5,face="bold"),
+        axis.ticks = element_line(size=0.1))
+
+OE.growth.rate.comparison.57 <- 
+  ggplot()+
+  geom_col(data=salted.lowlight.100uE.gr.stat[(salted.lowlight.100uE.gr.stat$Strain=="OE5-1")|(salted.lowlight.100uE.gr.stat$Strain=="OE7-2"),], mapping=aes(x= Mutants,y=gr.mean,width=0.5,alpha=0.3,fill=Strain))+
+  scale_fill_manual(values=c("#E99C93","#F1DBB9"))+
+  geom_errorbar(data=salted.lowlight.100uE.gr.stat[(salted.lowlight.100uE.gr.stat$Strain=="OE5-1")|(salted.lowlight.100uE.gr.stat$Strain=="OE7-2"),],mapping=aes(x=Mutants, ymin=gr.mean-gr.sd, ymax=gr.mean+gr.sd,color=Strain), width=.3,position=position_dodge(.9)) +
+  geom_point(data=salted.lowlight.100uE.gr[(salted.lowlight.100uE.gr$Strain=="OE5-1")|(salted.lowlight.100uE.gr$Strain=="OE7-2"),], mapping=aes(x=Mutants,y=growth.rate),size=0.001)+
+  scale_color_manual(values=c("#E99C93","#F1DBB9"))+
+  theme_bw(base_line_size=0.1) +
+  ylab("Groth rate /h")+
+  annotate("text", x = 1, y = 0.04, 
+           label = "**",
+           size = 8 / .pt, color = "#22292F")+
+  theme(legend.position = "none",
+        axis.text.x = element_text(size=8 / .pt, angle=0),
+        axis.text.y = element_text(size=5 / .pt, angle=0),
+        panel.grid.major = element_line(size=0, linetype="blank",color="white"),
+        panel.grid.minor = element_line(size=0, linetype="blank",color="white"),
+        axis.title=element_text(size=8/.pt,face="bold"),
+        axis.ticks = element_line(size=0.1),
+        panel.background = element_rect(fill = "transparent", colour = "transparent"),
+        plot.background = element_rect(fill='transparent', color=NA))+
+    scale_y_continuous(expand = c(0,0), limits = c(0, 0.05)) 
+
+fused.OE57 <- ggdraw() +
+  draw_plot(salted.lowlight.plot57) +
+  draw_plot(OE.growth.rate.comparison.57, x = 0.23, y = .49, width = .45, height = .45)
+
+ggsave(filename = file.path("./image","20240415-salted-lowlight-growthCurve-OE57.pdf"),plot = fused.OE57, device = "pdf", width = 4, height = 4, units = "cm")
+```
+```{r}
+salted.lowlight.plot58 <- 
+  ggplot(p2[((p2$Strain=="OE5-1")|(p2$Strain=="OE8-2"))&(p2$Time<72*3600),]) + 
+  theme_bw(base_line_size = 0.3) +
+  geom_point(aes(x=Time/3600, y=mean, color=Strain, fill=Strain),size=0.05) + 
+  geom_ribbon(aes(x=Time/3600, y=mean, ymin=lo, ymax=up, fill=Strain), alpha=0.5) +
+  ylab(bquote(OD["730"]))+
+  xlab("Time (h)")+
+  ylim(c(0,0.8))+
+  scale_color_manual(values=c("#F2D086","#B1C07A"))+
+  scale_fill_manual(values=c("#F2D086","#B1C07A"))+
+  theme(legend.position = "none",
+        panel.grid.major = element_line(size=0.1, linetype="blank",color="white"),
+        panel.grid.minor = element_line(size=0.1, linetype="blank",color="white"),
+        axis.text=element_text(size=5),
+        axis.title=element_text(size=5),
+        axis.ticks = element_line(size=0.1))+
+  geom_segment(aes(x=74,xend=74,y=0.61,yend=0.73))+
+  annotate("text", x = 68, y = 0.64, 
+           label = "**",
+           size = 10 / .pt, color = "#22292F")
+
+OE.growth.rate.comparison.58 <- 
+  ggplot()+
+  geom_col(data=salted.lowlight.100uE.gr.stat[(salted.lowlight.100uE.gr.stat$Strain=="OE5-1")|(salted.lowlight.100uE.gr.stat$Strain=="OE8-2"),], mapping=aes(x= Mutants,y=gr.mean,width=0.5,alpha=0.3,fill=Strain))+
+  scale_fill_manual(values=c("#F2D086","#B1C07A"))+
+  geom_errorbar(data=salted.lowlight.100uE.gr.stat[(salted.lowlight.100uE.gr.stat$Strain=="OE5-1")|(salted.lowlight.100uE.gr.stat$Strain=="OE8-2"),],mapping=aes(x=Mutants, ymin=gr.mean-gr.sd, ymax=gr.mean+gr.sd,color=Strain), width=.3,position=position_dodge(.9)) +
+  geom_point(data=salted.lowlight.100uE.gr[(salted.lowlight.100uE.gr$Strain=="OE5-1")|(salted.lowlight.100uE.gr$Strain=="OE8-2"),], mapping=aes(x=Mutants,y=growth.rate),size=0.001)+
+  scale_color_manual(values=c("#F2D086","#B1C07A"))+
+  theme_bw(base_line_size=0.1) +
+  ylab(expression("Growth rate (h"^{-1}*")"))+
+  annotate("text", x = 1, y = 0.04, 
+           label = "**",
+           size = 8 / .pt, color = "#22292F")+
+  theme(legend.position = "none",
+        axis.text.x = element_text(size=8 / .pt, angle=0),
+        axis.text.y = element_text(size=5 / .pt, angle=0),
+        panel.grid.major = element_line(size=0, linetype="blank",color="white"),
+        panel.grid.minor = element_line(size=0, linetype="blank",color="white"),
+        axis.title=element_text(size=8/.pt),
+        axis.ticks = element_line(size=0.1),
+        panel.background = element_rect(fill = "transparent", colour = "transparent"),
+        plot.background = element_rect(fill='transparent', color=NA))+
+    scale_y_continuous(expand = c(0,0), limits = c(0, 0.05)) 
+
+fused.OE58 <- ggdraw() +
+  draw_plot(salted.lowlight.plot58) +
+  draw_plot(OE.growth.rate.comparison.58, x = 0.23, y = .49, width = .45, height = .45)
+
+ggsave(filename = file.path("./image","20240815-salted-lowlight-growthCurve-OE58.pdf"),plot = fused.OE58, device = "pdf", width = 4, height = 4, units = "cm")
+```
+```{r}
+salted.lowlight.plot59 <- 
+  ggplot(p2[((p2$Strain=="OE5-1")|(p2$Strain=="OE9-3"))&(p2$Time<72*3600),]) + 
+  theme_bw(base_line_size = 0.3) +
+  geom_point(aes(x=Time/3600, y=mean, color=Strain, fill=Strain),size=0.05) + 
+  geom_ribbon(aes(x=Time/3600, y=mean, ymin=lo, ymax=up, fill=Strain), alpha=0.5) +
+  ylab(bquote(OD["730"]))+
+  xlab("Time (h)")+
+  ylim(c(0,0.8))+
+  scale_color_manual(values=c("#F2D086","#95BE7E"))+
+  scale_fill_manual(values=c("#F2D086","#95BE7E"))+
+  theme(legend.position = "none",
+        panel.grid.major = element_line(size=0.1, linetype="blank",color="white"),
+        panel.grid.minor = element_line(size=0.1, linetype="blank",color="white"),
+        axis.text=element_text(size=5),
+        axis.title=element_text(size=5),
+        axis.ticks = element_line(size=0.1))+
+  geom_segment(aes(x=74,xend=74,y=0.61,yend=0.67))+
+  annotate("text", x = 71, y = 0.62, 
+           label = "*",
+           size = 10 / .pt, color = "#22292F")
+
+OE.growth.rate.comparison.59 <- 
+  ggplot()+
+  geom_col(data=salted.lowlight.100uE.gr.stat[(salted.lowlight.100uE.gr.stat$Strain=="OE5-1")|(salted.lowlight.100uE.gr.stat$Strain=="OE9-3"),], mapping=aes(x= Mutants,y=gr.mean,width=0.5,alpha=0.3,fill=Strain))+
+  scale_fill_manual(values=c("#F2D086","#95BE7E"))+
+  geom_errorbar(data=salted.lowlight.100uE.gr.stat[(salted.lowlight.100uE.gr.stat$Strain=="OE5-1")|(salted.lowlight.100uE.gr.stat$Strain=="OE9-3"),],mapping=aes(x=Mutants, ymin=gr.mean-gr.sd, ymax=gr.mean+gr.sd,color=Strain), width=.3,position=position_dodge(.9)) +
+  geom_point(data=salted.lowlight.100uE.gr[(salted.lowlight.100uE.gr$Strain=="OE5-1")|(salted.lowlight.100uE.gr$Strain=="OE9-3"),], mapping=aes(x=Mutants,y=growth.rate),size=0.001)+
+  scale_color_manual(values=c("#F2D086","#95BE7E"))+
+  theme_bw(base_line_size=0.1) +
+  ylab(expression("Growth rate (h"^{-1}*")"))+
+  annotate("text", x = 1, y = 0.04, 
+           label = "**",
+           size = 8 / .pt, color = "#22292F")+
+  theme(legend.position = "none",
+        axis.text.x = element_text(size=8 / .pt, angle=0),
+        axis.text.y = element_text(size=5 / .pt, angle=0),
+        panel.grid.major = element_line(size=0, linetype="blank",color="white"),
+        panel.grid.minor = element_line(size=0, linetype="blank",color="white"),
+        axis.title=element_text(size=8/.pt),
+        axis.ticks = element_line(size=0.1),
+        panel.background = element_rect(fill = "transparent", colour = "transparent"),
+        plot.background = element_rect(fill='transparent', color=NA))+
+    scale_y_continuous(expand = c(0,0), limits = c(0, 0.05)) 
+
+fused.OE59 <- ggdraw() +
+  draw_plot(salted.lowlight.plot59)+
+  draw_plot(OE.growth.rate.comparison.59, x = 0.23, y = .49, width = .45, height = .45)
+  
+
+ggsave(filename = file.path("./image","20240815-salted-lowlight-growthCurve-OE59.pdf"),plot = fused.OE59, device = "pdf", width = 4, height = 4, units = "cm")
+```

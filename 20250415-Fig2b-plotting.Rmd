@@ -1,0 +1,241 @@
+---
+title: "20221220-Fig2-plotting"
+author: "Zhenxiong Jiang"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(dplyr)
+library(ggplot2)
+library(cowplot)
+library(ggrepel)
+library(patchwork)
+library(grid)
+library(ggpubr)
+library(tidyr)
+library(gplots)
+```
+Last updated: 12/20/22
+  Plot the probability density background for better visualization
+```{r}
+#Load the data
+df <- read.csv("mSe3-mSe0-compiled.csv")
+```
+Build the LM:
+```{r}
+##piecewise linear model
+tmp3 = df[(df$Strains=="mSe0"),]
+k.mean.result3 = kmeans(tmp3$terminal.OD730,2,iter.max = 1000, nstart = 2)
+tmp3$Cluster = k.mean.result3$cluster
+tmp3$Cluster = as.factor(tmp3$Cluster)
+tmp3 = tmp3[tmp3$Sucrose.Specific.Productivity>=10,]
+cluster31 = tmp3[tmp3$Cluster==1,]
+cluster32 = tmp3[tmp3$Cluster==2,]
+breakpoint <- (max(cluster31$terminal.OD730)+min(cluster32$terminal.OD730))/2
+fit33 = lm(log10(Sucrose.Productivity)~terminal.OD730,data = cluster31)
+fit34 = lm(log10(Sucrose.Productivity)~terminal.OD730,data = cluster32)
+
+tmp4 <- df
+tmp4 <- tmp4 %>% mutate(fold.change=terminal.OD730/initial.OD730)
+tmp4$Residual <- 0
+
+tmp4[(tmp4$Segregant.Type=="mSe0-normalization")&(tmp4$terminal.OD730<breakpoint),]$Residual <- log10(tmp4[(tmp4$Segregant.Type=="mSe0-normalization")&(tmp4$terminal.OD730<breakpoint),]$Sucrose.Productivity)-tmp4[(tmp4$Segregant.Type=="mSe0-normalization")&(tmp4$terminal.OD730<breakpoint),]$terminal.OD730*fit33$coefficients[2]-fit33$coefficients[1]
+tmp4[(tmp4$Segregant.Type=="mSe0-normalization")&(tmp4$terminal.OD730>breakpoint),]$Residual <- log10(tmp4[(tmp4$Segregant.Type=="mSe0-normalization")&(tmp4$terminal.OD730>breakpoint),]$Sucrose.Productivity)-tmp4[(tmp4$Segregant.Type=="mSe0-normalization")&(tmp4$terminal.OD730>breakpoint),]$terminal.OD730*fit34$coefficients[2]-fit34$coefficients[1]
+population1.sd = sd(tmp4[(tmp4$Segregant.Type=="mSe0-normalization")&(tmp4$terminal.OD730<breakpoint),]$Residual)
+population2.sd = sd(tmp4[(tmp4$Segregant.Type=="mSe0-normalization")&(tmp4$terminal.OD730>breakpoint),]$Residual)
+population1.mean = mean(tmp4[(tmp4$Segregant.Type=="mSe0-normalization")&(tmp4$terminal.OD730<breakpoint),]$Residual)
+population2.mean = mean(tmp4[(tmp4$Segregant.Type=="mSe0-normalization")&(tmp4$terminal.OD730>breakpoint),]$Residual)
+tmp4$CD <- 0
+tmp4[(tmp4$Segregant.Type=="mSe3")&(tmp4$terminal.OD730<breakpoint),]$CD <- pnorm((log10(tmp4[(tmp4$Segregant.Type=="mSe3")&(tmp4$terminal.OD730<breakpoint),]$Sucrose.Productivity)-tmp4[(tmp4$Segregant.Type=="mSe3")&(tmp4$terminal.OD730<breakpoint),]$terminal.OD730*fit33$coefficients[2]-fit33$coefficients[1]),mean=population1.mean,sd=population1.sd)
+tmp4[(tmp4$Segregant.Type=="mSe3")&(tmp4$terminal.OD730>breakpoint),]$CD <- pnorm((log10(tmp4[(tmp4$Segregant.Type=="mSe3")&(tmp4$terminal.OD730>breakpoint),]$Sucrose.Productivity)-tmp4[(tmp4$Segregant.Type=="mSe3")&(tmp4$terminal.OD730>breakpoint),]$terminal.OD730*fit34$coefficients[2]-fit34$coefficients[1]),mean=population2.mean,sd=population2.sd)
+
+fold.change.threshold <- quantile(tmp4[(!is.na(tmp4$fold.change)),]$fold.change,0.99)
+```
+Fit LM models:
+```{r}
+glm0 <- function(x) ifelse(x >= 0 & x <= breakpoint, 10^(fit33$coefficients[1]+fit33$coefficients[2]*x+population1.mean), 10^(fit34$coefficients[1]+fit34$coefficients[2]*x+population2.mean))
+
+glm1 <- function(x) ifelse(x>=0 & x<=breakpoint,
+                           10^(fit33$coefficients[1]+fit33$coefficients[2]*x+population1.mean+population1.sd),
+                           10^(fit34$coefficients[1]+fit34$coefficients[2]*x+population2.mean+population2.sd))
+
+glm2 <- function(x) ifelse(x>=0 & x<=breakpoint,
+                           10^(fit33$coefficients[1]+fit33$coefficients[2]*x+population1.mean+2*population1.sd),
+                           10^(fit34$coefficients[1]+fit34$coefficients[2]*x+population2.mean+2*population2.sd))
+
+glm3 <- function(x) ifelse(x>=0 & x<=breakpoint,
+                           10^(fit33$coefficients[1]+fit33$coefficients[2]*x+population1.mean+3*population1.sd),
+                           10^(fit34$coefficients[1]+fit34$coefficients[2]*x+population2.mean+3*population2.sd))
+
+mSe0.population.mean <- mean(tmp4[tmp4$Strains=="mSe0",]$terminal.OD730)
+mSe0.population.sd <- sd(tmp4[tmp4$Strains=="mSe0",]$terminal.OD730)
+
+mSe3.population.mean <- mean(tmp4[tmp4$Strains=="mSe3",]$terminal.OD730)
+mSe3.population.sd <- sd(tmp4[tmp4$Strains=="mSe3",]$terminal.OD730)
+```
+
+```{r}
+mSe3.threshold <- data.frame(x=c(mSe3.population.mean,mSe3.population.mean+mSe3.population.sd,mSe3.population.mean+2*mSe3.population.sd,mSe3.population.mean+3*mSe3.population.sd),
+                             y=c(0,0,0,0),
+                             xend=c(mSe3.population.mean,mSe3.population.mean+mSe3.population.sd,mSe3.population.mean+2*mSe3.population.sd,mSe3.population.mean+3*mSe3.population.sd),
+                             yend=c(glm0(mSe3.population.mean),glm1(mSe3.population.mean+mSe3.population.sd),min(120,glm2(mSe3.population.mean+2*mSe3.population.sd)),min(120,glm3(mSe3.population.mean+3*mSe3.population.sd))))
+```
+Data processing for plot1 and plot2 with terminal OD730:
+```{r}
+tmp5 <- tmp4
+
+tmp5[tmp5$terminal.OD730>quantile(tmp5[tmp5$Segregant.Type=="mSe3",]$terminal.OD730,0.995),]$Strains <- "mSe3 Biomass-Accumulating Mutants"
+tmp5[(!is.na(tmp5$fold.change))&tmp5$fold.change>fold.change.threshold,]$Strains <- "mSe3 Fast-Growing Mutants"
+tmp5[tmp5$CD>quantile(tmp5[tmp5$Segregant.Type=="mSe3",]$CD,0.99),]$Strains <- "mSe3 Sucrose-Producing Mutants"
+
+tmp5 <- tmp5 %>% mutate(Candidates=Strains) %>% mutate(Candidates=case_when(
+  Segregant == "mSe3-342" ~ "Yes",
+  Segregant == "mSe3-470" ~ "Yes",
+  Segregant == "mSe3-1291" ~ "Yes",
+  Segregant == "mSe3-1804" ~ "Yes",
+  #Segregant == "mSe3-7265" ~ "Yes",
+  Segregant == "mSe3-7803" ~ "Yes",
+  Segregant == "mSe3-7976" ~ "Yes",
+  #Segregant == "mSe3-8345" ~ "Yes",
+  TRUE ~ as.character(Strains)
+))
+
+```
+
+```{r}
+plot1 <-
+ggplot()+
+  geom_point(data = tmp5[(tmp5$Strains!="mSe0"),],aes(x=terminal.OD730,y=Sucrose.Productivity,fill=Strains,color=Candidates),size=1,shape=21)+
+  scale_fill_manual(values = c('grey66','#B1C07A','#43BC97')) + 
+  scale_color_manual(values = c('grey66','#B1C07A','#43BC97','red')) + 
+  xlab(expression(atop(OD[730])))+
+  ylab("Sucrose productivity \n (mg/L/day)")+
+  theme_classic()+
+  theme(legend.position = "none",
+        legend.title = element_text(size=7),
+        legend.text = element_text(size =7),
+        legend.background = element_rect(size=.5),
+        axis.text=element_text(size=7),
+        axis.title=element_text(size=7))+
+  stat_function(data=data.frame(x=seq(0,1,by=0.05)),aes(x),fun=glm0,color="#43BC97",alpha=0.7,size=1,xlim=c(0.05,0.565))+
+  stat_function(data=data.frame(x=seq(0,1,by=0.05)),aes(x),fun=glm2,color="#43BC97",alpha=0.7,size=1,xlim=c(0.05,mSe3.population.mean+2*mSe3.population.sd-0.125),linetype="dashed")+
+  geom_segment(aes(x=0.5933968, y=0, xend=0.5933968, yend=114),
+               linewidth=1,
+               color= "#B1C07A",
+               alpha=0.7,
+               linetype=2)+
+  geom_label_repel(data=tmp5[tmp5$Candidates=="Yes",], mapping = aes(x=terminal.OD730,y=Sucrose.Productivity,label=Segregant),hjust = 0, nudge_x = 0.05,size=2)+
+  expand_limits(x = 0, y = 0)+
+  scale_x_continuous(expand = expansion(mult=c(0,0)),limits=c(0.1,1.1)) + 
+  scale_y_continuous(expand = expansion(mult = c(0,0)),limits =c(0,120))
+```
+get legend:
+```{r}
+tmp4[tmp4$terminal.OD730>quantile(tmp4[tmp4$Segregant.Type=="mSe3",]$terminal.OD730,0.995),]$Strains <- "mSe3 Biomass-Accumulating Mutants"
+tmp4[(!is.na(tmp4$fold.change))&tmp4$fold.change>fold.change.threshold,]$Strains <- "mSe3 Fast-Growing Mutants"
+tmp4[tmp4$CD>quantile(tmp4[tmp4$Segregant.Type=="mSe3",]$CD,0.99),]$Strains <- "mSe3 Sucrose-Producing Mutants"
+plot0 <-
+ggplot()+
+  geom_point(data = tmp4[(tmp4$Strains!="mSe0"),],aes(x=terminal.OD730,y=Sucrose.Productivity,fill=Strains,color=Strains),size=1,shape=21)+
+  scale_fill_manual(values = c('grey66','#B1C07A','#95BE7E','#43BC97')) + 
+  scale_color_manual(values = c('grey66','#B1C07A','#95BE7E','#43BC97','red')) + 
+  xlab(expression(atop(OD[730])))+
+  ylab("Sucrose productivity \n (mg/L/day)")+
+  theme_classic()+
+  theme(legend.position = "bottom",
+        legend.title = element_blank(),
+        legend.text = element_text(size =8),
+        legend.background = element_rect(size=.5,fill = "transparent"),
+        axis.text=element_text(size=7),
+        axis.title=element_text(size=7))+
+  expand_limits(x = 0, y = 0)+
+  scale_x_continuous(expand = expansion(mult=c(0,0)),limits=c(0.1,1.1)) + 
+  scale_y_continuous(expand = expansion(mult = c(0, 0)),limits = c(0,120))
+leg0 <- get_legend(plot0)
+```
+```{r}
+tmp6 <- tmp4 %>% mutate(Candidates=Strains) %>% mutate(Candidates=case_when(
+#   Segregant == "mSe3-342" ~ "Yes",
+#   Segregant == "mSe3-470" ~ "Yes",
+#   Segregant == "mSe3-1291" ~ "Yes",
+#   Segregant == "mSe3-1804" ~ "Yes",
+  Segregant == "mSe3-7265" ~ "Yes",
+  # Segregant == "mSe3-7803" ~ "Yes",
+  # Segregant == "mSe3-7976" ~ "Yes",
+  Segregant == "mSe3-8345" ~ "Yes",
+  TRUE ~ as.character(Strains)
+))
+```
+
+Try to plot the Sucrose (Specific) Productivity vs OD730 fold change:
+```{r}
+plot3 <-
+ggplot()+
+  geom_point(data = tmp6[(tmp6$Strains!="mSe0")&(!is.na(tmp6$fold.change)),],aes(x=fold.change,y=Sucrose.Productivity,fill=Strains,color=Candidates),size=1,shape=21)+
+  scale_fill_manual(values = c('grey66','#95BE7E','#43BC97','#B1C07A')) + 
+  scale_color_manual(values = c('grey66','#95BE7E','#43BC97','red','#B1C07A')) + 
+  scale_alpha_manual(values = c(0.5,1,1,1)) +
+  xlab("Fold change of biomass")+
+  ylab("Sucrose productivity \n (mg/L/day)")+
+  theme_classic()+
+  theme(legend.position = "none",legend.title = element_text(size=7),legend.text = element_text(size =7),legend.background = element_rect(size=.5),axis.text=element_text(size=7),axis.title=element_text(size=7))+
+  geom_label_repel(data=tmp6[tmp6$Candidates=="Yes",], mapping = aes(x=fold.change,y=Sucrose.Productivity,label=Segregant),hjust = 0, nudge_x = 0.05,size=2)+
+  expand_limits(x = 0, y = 0)+
+  scale_x_continuous(expand = expansion(mult=c(0,0)),limits=c(min(tmp6[(tmp6$Strains!="mSe0")&(!is.na(tmp6$fold.change)),]$fold.change),5)) + 
+  scale_y_continuous(expand = expansion(mult = c(0,0)),limits = c(min(tmp6[(tmp6$Strains!="mSe0")&(!is.na(tmp6$fold.change)),]$Sucrose.Productivity),120))
+
+```
+Inlet of plot1, plot3, and legend
+```{r}
+final.p1 <- ggdraw()+
+  draw_plot(plot1)+
+  draw_plot(leg0, x=0.25,y=-0.03,width=0.45, height=0.15)+
+  draw_plot(plot3, x=0.65,y=0.65,width=0.4,height = 0.35)
+  
+ggsave(filename = file.path("./image","20240805-Fig2b.pdf"),plot = final.p1, device = "pdf", width = 18, height = 9, units = "cm")
+```
+Draw the contour plot:
+Generate 10000 simulated sample points, with a uniform distribution of samples on terminal OD730
+```{r}
+simulated.terminal.OD730 <- runif(100000,min=0,max=1.5)
+simulated.suc.prod <- numeric(100000)
+for (i in 1:100000){
+  if (simulated.terminal.OD730[i]<breakpoint){
+    simulated.suc.prod[i] <- 10^(simulated.terminal.OD730[i]*fit33$coefficients[2]+fit33$coefficients[1]+rnorm(1,mean=population1.mean,sd=population1.sd))
+  }
+  else{
+    simulated.suc.prod[i] <- 10^(simulated.terminal.OD730[i]*fit34$coefficients[2]+fit34$coefficients[1]+rnorm(1,mean=population2.mean,sd=population2.sd))
+  }
+}
+simulated.dat <- tibble(terminal.OD730=simulated.terminal.OD730,
+                        sucrose.prod=simulated.suc.prod,
+                        specific.prod=simulated.suc.prod/simulated.terminal.OD730)
+
+```
+mSe0 distribution
+```{r}
+mSe0.plot <- 
+ggplot()+
+  stat_density_2d_filled(simulated.dat[simulated.dat$sucrose.prod<120,], mapping=aes(x = as.numeric(terminal.OD730), y = as.numeric(sucrose.prod)), alpha=0.8)+
+  scale_fill_brewer(palette = "BuGn", direction=1)+
+  theme_classic()+
+  theme(legend.position = "none",
+        legend.title = element_text(size=16),
+        legend.text = element_text(size =16),
+        legend.background = element_rect(size=.5),
+        axis.text=element_text(size=16),
+        axis.title=element_text(size=16))+
+  stat_function(data=data.frame(x=seq(0,1,by=0.05)),aes(x),fun=glm0,color="limegreen",alpha=0.7,size=1,xlim=c(0.05,0.4))+
+  geom_point(tmp3,mapping=aes(x=terminal.OD730,y=Sucrose.Productivity),size=0.5)+
+  scale_x_continuous(expand = expansion(mult=c(0,0)),limits=c(0.1,0.45)) + 
+  scale_y_continuous(expand = expansion(mult = c(0, 0)),limits = c(0,75))+
+  xlab(bquote(OD["730"]))+
+  ylab("Sucrose productivity (mg/L/day)")
+ggsave(filename = file.path("./image","20240818-probability-density.pdf"),plot = mSe0.plot, device = "pdf", width = 18, height = 12, units = "cm")
+```
+
+
+

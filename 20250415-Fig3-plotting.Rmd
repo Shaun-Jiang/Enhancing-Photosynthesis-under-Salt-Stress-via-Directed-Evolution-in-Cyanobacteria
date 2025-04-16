@@ -1,0 +1,430 @@
+---
+title: "20240202-Fig4-plotting"
+author: "Zhenxiong Jiang"
+date: "2024-02-02"
+output: pdf_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(dplyr)
+library(ggplot2)
+library(cowplot)
+library(ggrepel)
+library(patchwork)
+library(grid)
+library(ggpubr)
+library(tidyr)
+library(gplots)
+library(vcfR)
+```
+## Getting familiar with vcfR package
+### Load vcf files:
+```{r}
+PCC7942 <- read.vcfR("PCC7942.ann.vcf",verbose=FALSE)
+mSe3.342 <- read.vcfR("mSe3_342.ann.vcf",verbose=FALSE)
+mSe3.470 <- read.vcfR("mSe3_470.ann.vcf",verbose=FALSE)
+mSe3.1291 <- read.vcfR("mSe3_1291.ann.vcf",verbose=FALSE)
+mSe3.1804 <- read.vcfR("mSe3_1804.ann.vcf",verbose=FALSE)
+mSe3.7265 <- read.vcfR("mSe3_7265.ann.vcf",verbose=FALSE)
+mSe3.7803 <- read.vcfR("mSe3_7803.ann.vcf",verbose=FALSE)
+mSe3.7976 <- read.vcfR("mSe3_7976.ann.vcf",verbose=FALSE)
+mSe3.8345 <- read.vcfR("mSe3_8345.ann.vcf",verbose=FALSE)
+```
+### Explore meta info
+```{r}
+strwrap(PCC7942@meta[1:7])
+```
+```{r}
+queryMETA(PCC7942)
+```
+```{r}
+queryMETA(PCC7942,element = "ADF")
+```
+### Explore the fix region
+```{r}
+head(getFIX(PCC7942))
+```
+```{r}
+getFIX(PCC7942)[,2]
+```
+
+### Explore the gt region
+```{r}
+PCC7942@gt[1:6,]
+```
+```{r}
+PCC7942@gt[1:6,2]
+```
+## Extract real-world information. DAD represents dominant(second) alternative allele depth, AF represents the allele frequency of the second alternative allele.
+```{r}
+#PCC7942
+PCC7942.ADF <- PCC7942@gt[,2] %>% strsplit(":")
+PCC7942.ADF.info <- tibble(POS = getFIX(PCC7942)[,2],
+                           REF = getFIX(PCC7942)[,4],
+                           ALT = getFIX(PCC7942)[,5],
+                           DP = as.numeric(sapply(lapply(PCC7942.ADF, function(x) unlist(strsplit(x, ":"))), function(y) y[3])),
+                           AD = sapply(lapply(PCC7942.ADF, function(x) unlist(strsplit(x, ":"))), function(y) y[7]),
+                           DAD = sapply(strsplit(AD, ","),function(x) as.numeric(x[2]))) %>% mutate(AF=DAD/DP)
+#mSe3-342
+mSe3.342.ADF <- mSe3.342@gt[,2] %>% strsplit(":")
+mSe3.342.ADF.info <- tibble(POS = getFIX(mSe3.342)[,2],
+                            REF = getFIX(mSe3.342)[,4],
+                            ALT = getFIX(mSe3.342)[,5],
+                            DP = as.numeric(sapply(lapply(mSe3.342.ADF, function(x) unlist(strsplit(x, ":"))), function(y) y[3])),
+                            AD = sapply(lapply(mSe3.342.ADF, function(x) unlist(strsplit(x, ":"))), function(y) y[7]),
+                           DAD = sapply(strsplit(AD, ","),function(x) as.numeric(x[2]))) %>% mutate(AF=DAD/DP)
+#mSe3-470
+mSe3.470.ADF <- mSe3.470@gt[,2] %>% strsplit(":")
+mSe3.470.ADF.info <- tibble(POS = getFIX(mSe3.470)[,2],
+                            REF = getFIX(mSe3.470)[,4],
+                            ALT = getFIX(mSe3.470)[,5],
+                            DP = as.numeric(sapply(lapply(mSe3.470.ADF, function(x) unlist(strsplit(x, ":"))), function(y) y[3])),
+                            AD = sapply(lapply(mSe3.470.ADF, function(x) unlist(strsplit(x, ":"))), function(y) y[7]),
+                           DAD = sapply(strsplit(AD, ","),function(x) as.numeric(x[2]))) %>% mutate(AF=DAD/DP)
+#mSe3-1291
+mSe3.1291.ADF <- mSe3.1291@gt[,2] %>% strsplit(":")
+mSe3.1291.ADF.info <- tibble(POS = getFIX(mSe3.1291)[,2],
+                            REF = getFIX(mSe3.1291)[,4],
+                            ALT = getFIX(mSe3.1291)[,5],
+                            DP = as.numeric(sapply(lapply(mSe3.1291.ADF, function(x) unlist(strsplit(x, ":"))), function(y) y[3])),
+                            AD = sapply(lapply(mSe3.1291.ADF, function(x) unlist(strsplit(x, ":"))), function(y) y[7]),
+                           DAD = sapply(strsplit(AD, ","),function(x) as.numeric(x[2]))) %>% mutate(AF=DAD/DP)
+#mSe3-1804
+mSe3.1804.ADF <- mSe3.1804@gt[,2] %>% strsplit(":")
+mSe3.1804.ADF.info <- tibble(POS = getFIX(mSe3.1804)[,2],
+                            REF = getFIX(mSe3.1804)[,4],
+                            ALT = getFIX(mSe3.1804)[,5],
+                            DP = as.numeric(sapply(lapply(mSe3.1804.ADF, function(x) unlist(strsplit(x, ":"))), function(y) y[3])),
+                            AD = sapply(lapply(mSe3.1804.ADF, function(x) unlist(strsplit(x, ":"))), function(y) y[7]),
+                           DAD = sapply(strsplit(AD, ","),function(x) as.numeric(x[2]))) %>% mutate(AF=DAD/DP)
+#mSe3-7265
+mSe3.7265.ADF <- mSe3.7265@gt[,2] %>% strsplit(":")
+mSe3.7265.ADF.info <- tibble(POS = getFIX(mSe3.7265)[,2],
+                            REF = getFIX(mSe3.7265)[,4],
+                            ALT = getFIX(mSe3.7265)[,5],
+                            DP = as.numeric(sapply(lapply(mSe3.7265.ADF, function(x) unlist(strsplit(x, ":"))), function(y) y[3])),
+                            AD = sapply(lapply(mSe3.7265.ADF, function(x) unlist(strsplit(x, ":"))), function(y) y[7]),
+                           DAD = sapply(strsplit(AD, ","),function(x) as.numeric(x[2]))) %>% mutate(AF=DAD/DP)
+#mSe3-7803
+mSe3.7803.ADF <- mSe3.7803@gt[,2] %>% strsplit(":")
+mSe3.7803.ADF.info <- tibble(POS = getFIX(mSe3.7803)[,2],
+                            REF = getFIX(mSe3.7803)[,4],
+                            ALT = getFIX(mSe3.7803)[,5],
+                            DP = as.numeric(sapply(lapply(mSe3.7803.ADF, function(x) unlist(strsplit(x, ":"))), function(y) y[3])),
+                            AD = sapply(lapply(mSe3.7803.ADF, function(x) unlist(strsplit(x, ":"))), function(y) y[7]),
+                           DAD = sapply(strsplit(AD, ","),function(x) as.numeric(x[2]))) %>% mutate(AF=DAD/DP)
+#mSe3-7976
+mSe3.7976.ADF <- mSe3.7976@gt[,2] %>% strsplit(":")
+mSe3.7976.ADF.info <- tibble(POS = getFIX(mSe3.7976)[,2],
+                            REF = getFIX(mSe3.7976)[,4],
+                            ALT = getFIX(mSe3.7976)[,5],
+                            DP = as.numeric(sapply(lapply(mSe3.7976.ADF, function(x) unlist(strsplit(x, ":"))), function(y) y[3])),
+                            AD = sapply(lapply(mSe3.7976.ADF, function(x) unlist(strsplit(x, ":"))), function(y) y[7]),
+                           DAD = sapply(strsplit(AD, ","),function(x) as.numeric(x[2]))) %>% mutate(AF=DAD/DP)
+#mSe3-8345
+mSe3.8345.ADF <- mSe3.8345@gt[,2] %>% strsplit(":")
+mSe3.8345.ADF.info <- tibble(POS = getFIX(mSe3.8345)[,2],
+                            REF = getFIX(mSe3.8345)[,4],
+                            ALT = getFIX(mSe3.8345)[,5],
+                            DP = as.numeric(sapply(lapply(mSe3.8345.ADF, function(x) unlist(strsplit(x, ":"))), function(y) y[3])),
+                            AD = sapply(lapply(mSe3.8345.ADF, function(x) unlist(strsplit(x, ":"))), function(y) y[7]),
+                           DAD = sapply(strsplit(AD, ","),function(x) as.numeric(x[2]))) %>% mutate(AF=DAD/DP)
+```
+### Load tab files for merge
+```{r}
+PCC7942.tab <- read.delim("PCC7942.tab", header = TRUE) %>% mutate(POS=as.character(POS))
+mSe3.342.tab <- read.delim("mSe3_342.tab", header = TRUE) %>% mutate(POS=as.character(POS))
+mSe3.470.tab <- read.delim("mSe3_470.tab", header = TRUE) %>% mutate(POS=as.character(POS))
+mSe3.1291.tab <- read.delim("mSe3_1291.tab", header = TRUE) %>% mutate(POS=as.character(POS))
+mSe3.1804.tab <- read.delim("mSe3_1804.tab", header = TRUE) %>% mutate(POS=as.character(POS))
+mSe3.7265.tab <- read.delim("mSe3_7265.tab", header = TRUE) %>% mutate(POS=as.character(POS))
+mSe3.7803.tab <- read.delim("mSe3_7803.tab", header = TRUE) %>% mutate(POS=as.character(POS))
+mSe3.7976.tab <- read.delim("mSe3_7976.tab", header = TRUE) %>% mutate(POS=as.character(POS))
+mSe3.8345.tab <- read.delim("mSe3_8345.tab", header = TRUE) %>% mutate(POS=as.character(POS))
+```
+### Join two tables
+```{r}
+PCC7942.merged <- full_join(PCC7942.tab,PCC7942.ADF.info,by=c("POS","REF","ALT")) %>% mutate(Strain="PCC7942")
+mSe3.342.merged <- full_join(mSe3.342.tab,mSe3.342.ADF.info,by=c("POS","REF","ALT")) %>% mutate(Strain="mSe3-342")
+mSe3.470.merged <- full_join(mSe3.470.tab,mSe3.470.ADF.info,by=c("POS","REF","ALT")) %>% mutate(Strain="mSe3-470")
+mSe3.1291.merged <- full_join(mSe3.1291.tab,mSe3.1291.ADF.info,by=c("POS","REF","ALT")) %>% mutate(Strain="mSe3-1291")
+mSe3.1804.merged <- full_join(mSe3.1804.tab,mSe3.1804.ADF.info,by=c("POS","REF","ALT")) %>% mutate(Strain="mSe3-1804")
+mSe3.7265.merged <- full_join(mSe3.7265.tab,mSe3.7265.ADF.info,by=c("POS","REF","ALT")) %>% mutate(Strain="mSe3-7265")
+mSe3.7803.merged <- full_join(mSe3.7803.tab,mSe3.7803.ADF.info,by=c("POS","REF","ALT")) %>% mutate(Strain="mSe3-7803")
+mSe3.7976.merged <- full_join(mSe3.7976.tab,mSe3.7976.ADF.info,by=c("POS","REF","ALT")) %>% mutate(Strain="mSe3-7976")
+mSe3.8345.merged <- full_join(mSe3.8345.tab,mSe3.8345.ADF.info,by=c("POS","REF","ALT")) %>% mutate(Strain="mSe3-8345")
+```
+### Merge the whole table
+```{r}
+total.merge <- rbind(PCC7942.merged,mSe3.342.merged,mSe3.470.merged,mSe3.1291.merged,mSe3.1804.merged,mSe3.7265.merged,mSe3.7803.merged,mSe3.7976.merged,mSe3.8345.merged)%>%
+  mutate(Synonymous = case_when(
+    grepl("synonymous_variant", EFFECT) ~ as.logical(1),
+    TRUE ~ as.logical(0)  # Capture all other cases or specify further as needed
+  ))
+total.merge$LOCUS_TAG <- gsub("SYNPCC7942_","",total.merge$LOCUS_TAG) 
+#total.merge$Mutation <- paste(total.merge$LOCUS_TAG,total.merge$PRODUCT,sep = ": ")
+total.merge$Mutation <- ifelse(total.merge$GENE!="",paste(total.merge$LOCUS_TAG,total.merge$GENE,sep = ": "),total.merge$LOCUS_TAG)
+```
+### Start analysis
+```{r}
+#unique mutations in mSe3 strains
+length(unique(total.merge[total.merge$Strain!="PCC7942",]$POS))
+
+#unique mutations on intergenic region in mSe3 strains
+length(unique(total.merge[(total.merge$Strain!="PCC7942")&(total.merge$LOCUS_TAG==""),]$POS))
+
+#unique mutations on CDS in mSe3 strains
+length(unique(total.merge[(total.merge$Strain!="PCC7942")&(total.merge$LOCUS_TAG!=""),]$POS))
+
+#unique synonymous mutations on CDS in mSe3 strains
+length(unique(total.merge[(total.merge$Strain!="PCC7942")&(total.merge$LOCUS_TAG!="")&(total.merge$Synonymous),]$POS))
+```
+### 1. plotting coding sequences
+```{r}
+total.merge$Strain <- factor(total.merge$Strain, levels = c("PCC7942", "mSe3-342", "mSe3-470", "mSe3-1291", "mSe3-1804", "mSe3-7265", "mSe3-7803", "mSe3-7976", "mSe3-8345"))
+#remove mutations that exist in PCC7942 with close to 1 alternative allele frequency
+total.merge <- total.merge[!(total.merge$Mutation=="RS03365"|total.merge$Mutation=="RS00480"|total.merge$Mutation=="RS04725"|total.merge$Mutation=="RS08420"|total.merge$Mutation=="RS09065"|total.merge$Mutation=="RS12060"|total.merge$Mutation=="RS06625"),]
+```
+ggplot version:
+```{r}
+#AF.overview.plot <- 
+ggplot()+
+  geom_tile(total.merge[(total.merge$AF>0.25)&(total.merge$CHROM=="NC_007604.1")&(total.merge$LOCUS_TAG!=""),],mapping=aes(x=factor(Strain),y=Mutation,fill=AF))+
+  theme_grey()+
+  theme(axis.text=element_text(size=5),
+        axis.title=element_text(size=7,face="bold"),
+        axis.ticks = element_blank(),
+        panel.border = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.text.x = element_text(angle = 30, vjust = 0.5, hjust=0.5),
+        legend.position = c(-1.1,0.8))+
+  xlab(" ")+
+  ylab(" ")+
+  geom_text(total.merge[(total.merge$AF>0.25)&(total.merge$CHROM=="NC_007604.1")&(total.merge$LOCUS_TAG!="")&(total.merge$Synonymous==TRUE),], mapping=aes(x=Strain,y=Mutation,label=ifelse(Synonymous,"SM",NA)),color="white",size=5 / .pt)+
+  scale_y_discrete(position = "right")
+#ggsave(filename = file.path("../../image","20240411-AF-overview.pdf"),plot = AF.overview.plot, device = "pdf", width = 18, height = 10, units = "cm")
+```
+Revised at 07/25/2024: Heatmap() under ComplexHeatmap package:
+```{r}
+library(dplyr)
+library(ggplot2)
+library(ComplexHeatmap)
+library(circlize)
+
+# Load data
+data <- total.merge
+
+# Filter and prepare the data
+##select for mutations on CDS regions
+data_cds <- data[(data$FTYPE == "CDS")&(data$AF>0.25),]
+
+data_summarized <- data_cds %>%
+  group_by(Strain, Mutation) %>%
+  summarise(AF = max(AF, na.rm = TRUE), uniqueness=n(), .groups = 'drop')
+
+data_summarized <- data_summarized %>% group_by(Mutation) %>% mutate(Mutation=ifelse(max(uniqueness)>1,paste0(Mutation,"*"),Mutation))
+
+heatmap_data <- pivot_wider(data_summarized, names_from = Strain, values_from = AF, id_cols = Mutation) 
+row.names(heatmap_data) <- heatmap_data$Mutation
+
+# Define groups based on presence in PCC7942
+group_1 <- unique(data_cds[data_cds$Strain == "PCC7942", "Mutation"])
+group_2 <- setdiff(unique(data_cds$Mutation), group_1)
+
+# Separate the data into two groups and reorder within each group
+data_group_1 <- heatmap_data[row.names(heatmap_data) %in% group_1, ]
+data_group_2 <- heatmap_data[row.names(heatmap_data) %in% group_2, ]
+
+data_group_1.rownames <- data_group_1$Mutation
+data_group_1 <- data_group_1 %>% select(!Mutation)
+data_group_1 <- replace(data_group_1, is.na(data_group_1), 0)
+row.names(data_group_1) <- data_group_1.rownames
+
+data_group_2.rownames <- data_group_2$Mutation
+data_group_2 <- data_group_2 %>% select(!Mutation)
+data_group_2 <- replace(data_group_2, is.na(data_group_2), 0)
+row.names(data_group_2) <- data_group_2.rownames
+
+# Hierarchical clustering within each group
+hc_group_1 <- hclust(dist(data_group_1, method="euclidean"), method="average")
+hc_group_2 <- hclust(dist(data_group_2, method="euclidean"), method="average")
+
+#hc_group_1 <- hclust(as.dist(1-cor(t(data_group_1), method="pearson")), method="average")
+#hc_group_2 <- hclust(as.dist(1-cor(t(data_group_2), method="pearson")), method="average")
+
+# Combine reordered data, keeping group 2 on top
+final_data <- rbind(data_group_2[hc_group_2$order, ], data_group_1[hc_group_1$order, ])
+row.names(final_data) <- c(data_group_2.rownames[hc_group_2$order ],data_group_1.rownames[hc_group_1$order])
+
+row_clusters <- hclust(dist(final_data,method="euclidean"), method = "average")
+
+# Generate the heatmap
+#coding.AF.plot <- 
+  Heatmap(as.matrix(final_data), 
+        name = "Allele Frequency",
+        cluster_columns = FALSE,  # Use pre-computed clustering to preserve order
+        cluster_rows = hclust(dist(final_data, method="euclidean")),
+        #cluster_rows = FALSE,
+        show_row_dend = TRUE,
+        #row_dend_reorder = FALSE,
+        row_dend_reorder = c(hc_group_2$order,hc_group_1$order+13),
+        clustering_distance_rows = "euclidean",
+        clustering_method_rows = "average",
+        column_title = "",  # or use another meaningful title
+        row_title = "",
+        row_names_gp = gpar(fontsize = 7/.pt),
+        column_names_gp = gpar(fontsize = 7/.pt),
+        column_names_side = "bottom",
+        heatmap_legend_param = list(title = "Allele Frequency", at = c(0, 0.5, 1), labels = c("0", "0.25", "1")),
+        col = colorRampPalette(c("grey", "#448CC6","#132B43"))(50)
+        #col = colorRampPalette(c("grey", "#4c812f","#225307"))(50)
+        )
+        
+Heatmap(as.matrix(final_data), 
+        name = "Allele Frequency",
+        cluster_columns = FALSE,  # Use pre-computed clustering to preserve order
+        cluster_rows = FALSE,
+        show_row_dend = TRUE,
+        #row_dend_reorder = FALSE,
+        row_dend_reorder = c(hc_group_2$order,hc_group_1$order+13),
+        clustering_distance_rows = "euclidean",
+        clustering_method_rows = "average",
+        column_title = "",  # or use another meaningful title
+        row_title = "",
+        row_names_side = "right",
+        row_names_gp = gpar(fontsize = 7, fontface = "bold"),
+        column_names_gp = gpar(fontsize = 7, fontface = "bold"),
+        column_names_side = "bottom",
+        heatmap_legend_param = list(title = "Allele Frequency", at = c(0, 0.5, 1), labels = c("0", "0.25", "1")),
+        #col = colorRampPalette(c("grey", "#448CC6","#132B43"))(50),
+        col = colorRampPalette(c("grey", "#4c812f","#225307"))(50)
+        )
+###save the output plot
+pdf("../../image/20240725-resived-Fig3b.pdf",width = 3.4,height = 4.1)
+Heatmap(as.matrix(final_data), 
+        name = "Allele Frequency",
+        cluster_columns = FALSE,  # Use pre-computed clustering to preserve order
+        cluster_rows = hclust(dist(final_data, method="euclidean")),
+        #cluster_rows = FALSE,
+        show_row_dend = TRUE,
+        #row_dend_reorder = FALSE,
+        row_dend_reorder = c(hc_group_2$order,hc_group_1$order+13),
+        clustering_distance_rows = "euclidean",
+        clustering_method_rows = "average",
+        column_title = "",  # or use another meaningful title
+        row_title = "",
+        row_names_gp = gpar(fontsize = 20/.pt),
+        column_names_gp = gpar(fontsize = 20/.pt),
+        #, fontface = "bold"
+        column_names_side = "bottom",
+        heatmap_legend_param = list(title = "Allele Frequency", at = c(0, 0.5, 1), labels = c("0", "0.5", "1")),
+        #col = colorRampPalette(c("grey88", "#448CC6","#132B43"))(50)
+        #col = colorRampPalette(c(col = colorRampPalette(c("grey88", "#448CC6","#132B43"))(50)))(50)
+        col = colorRampPalette(c(col = colorRampPalette(c("grey", "#4c812f","#225307"))(50)))(50)
+        )
+dev.off()
+```
+### 2. plotting non-coding regions:
+```{r}
+AF.noncoding.overview.plot <- 
+ggplot()+
+  geom_tile(total.merge[(total.merge$AF>0.25)&(total.merge$CHROM=="NC_007604.1")&(total.merge$LOCUS_TAG==""),],mapping=aes(x=Strain,y=Mutation,fill=AF))+
+  theme_grey()+
+  theme(axis.text=element_text(size=7),
+        axis.title=element_text(size=7,face="bold"),
+        axis.ticks = element_blank(),
+        panel.border = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=0.5))+
+  xlab(" ")+
+  ylab(" ")
+ggsave(filename = file.path("../../image","20240415-AF-noncoding-overiew.pdf"),plot = AF.noncoding.overview.plot, device = "pdf", width = 18, height = 10, units = "cm")
+```
+
+### plotting coding + regulatory
+```{r}
+AF.total.plot <- 
+ggplot(total.merge[(total.merge$AF>0.25)&(total.merge$CHROM=="NC_007604.1"),],aes(x=Strain,y=Mutation,fill=AF))+
+  geom_tile()+
+  theme_grey()+
+  theme(axis.text=element_text(size=12),
+        axis.title=element_text(size=14,face="bold"),
+        axis.ticks = element_blank(),
+        panel.border = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.text.x = element_text(angle = 90, vjust = 0.4, hjust=1))+
+  xlab("Strain")+
+  ylab("Mutation")
+ggsave(filename = file.path("../../image","20240202-AF-total-overiew.jpg"),plot = AF.total.plot, device = "jpeg", width = 32, height = 32, units = "cm")
+```
+
+### 3. plotting unique mutations
+Find unique mutations that are exclusive to PCC7942 first, and then merge them into a single table (merged.unique) and add four columns indicating different tyoe of mutations (Synonymous, missense,mutations on coding regions, and ncDNA). 
+LOCUS_TAG was then modified to remove "SYNPCC7942_", and Mutation as a column was added to merge LOCUS_TAG with gene names.
+Finally, merged.unique.stat was generated summarizing the number of mutations on CDS, synonymous mutations, missense mutations
+```{r}
+mSe3.342.unique <- anti_join(mSe3.342.merged,PCC7942.merged,by="POS")
+mSe3.470.unique <- anti_join(mSe3.470.merged,PCC7942.merged,by="POS")
+mSe3.1291.unique <- anti_join(mSe3.1291.merged,PCC7942.merged,by="POS")
+mSe3.1804.unique <- anti_join(mSe3.1804.merged,PCC7942.merged,by="POS")
+mSe3.7265.unique <- anti_join(mSe3.7265.merged,PCC7942.merged,by="POS")
+mSe3.7803.unique <- anti_join(mSe3.7803.merged,PCC7942.merged,by="POS")
+mSe3.7976.unique <- anti_join(mSe3.7976.merged,PCC7942.merged,by="POS")
+mSe3.8345.unique <- anti_join(mSe3.8345.merged,PCC7942.merged,by="POS")
+
+merged.unique <- rbind(mSe3.342.unique,mSe3.470.unique,mSe3.1291.unique,mSe3.1804.unique,mSe3.7265.unique,mSe3.7803.unique,mSe3.7976.unique,mSe3.8345.unique)%>%
+  mutate(Synonymous = case_when(
+    grepl("synonymous_variant", EFFECT) ~ 1,
+    TRUE ~ 0  # Capture all other cases or specify further as needed
+  )) %>% 
+  mutate(Missense = case_when(
+    grepl("missense_variant", EFFECT) ~ 1,
+    TRUE ~ 0
+  )) %>% 
+  mutate(Coding = case_when(grepl("CDS",FTYPE) ~ 1,
+                   TRUE ~ 0
+  )) %>% 
+  mutate(ncDNA = case_when(grepl("region",FTYPE) ~ 1,
+                   TRUE ~ 0
+  ))
+  
+merged.unique$LOCUS_TAG <- gsub("SYNPCC7942_","",merged.unique$LOCUS_TAG) 
+#merged.unique$Mutation <- paste(merged.unique$LOCUS_TAG,merged.unique$PRODUCT,sep = ": ")
+merged.unique$Mutation <- ifelse(merged.unique$GENE!="",paste(merged.unique$LOCUS_TAG,merged.unique$GENE,sep = ": "),merged.unique$LOCUS_TAG)
+
+merged.unique.stat <- merged.unique %>% group_by(Strain) %>% summarise(Coding=sum(Coding), Synonymous = sum(Synonymous),Missense = sum(Missense),ncDNA=sum(ncDNA)) %>% mutate(Indel = Coding-Synonymous-Missense) %>% select(!Coding)%>% pivot_longer(cols = 2:5, names_to = "Mutation", values_to = "Count")
+
+merged.unique.stat$Mutation = case_when(merged.unique.stat$Mutation=="Synonymous" ~ "CDS:synonymous",
+                                      merged.unique.stat$Mutation=="Missense" ~ "CDS:missense",
+                                      merged.unique.stat$Mutation=="Indel" ~ "CDS:indel",
+                                      merged.unique.stat$Mutation=="ncDNA" ~ "ncDNA")
+
+merged.unique.stat$Strain <- factor(merged.unique.stat$Strain,levels = c("mSe3-342","mSe3-470","mSe3-1291","mSe3-1804","mSe3-7265","mSe3-7803","mSe3-7976","mSe3-8345"))
+```
+```{r}
+mutation.overview <- 
+  ggplot(merged.unique.stat,mapping=aes(x=factor(Strain),y=Count,fill=Mutation))+
+  geom_bar(stat = "identity")+
+  scale_fill_manual(values=c("#000000","#4D4D4D","#AFAFA8","#D9D9D9"))+
+  xlab("")+
+  theme_bw(base_line_size = 0.3)+
+  theme(legend.position = c(0.25,0.79),
+        legend.text=element_text(size=5),
+        legend.title=element_text(size=7),
+        legend.background = element_blank(),
+        panel.grid.major = element_line(size=0.1, linetype="blank",color="white"),
+        panel.grid.minor = element_line(size=0.1, linetype="blank",color="white"),
+        axis.text=element_text(size=20/.pt),
+        axis.title=element_text(size=20/.pt),
+        axis.ticks = element_line(size=0.1),
+        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=0.5))
+  
+ggsave(filename = file.path("/Users/jiangz49/OneDrive - University of Florida/Data_file/Zhenxiong_Shaun_Jiang/data/image","20240807-revised-Fig3a.pdf"),plot = mutation.overview, device = "pdf", width = 7, height = 10, units = "cm")  
+```
+

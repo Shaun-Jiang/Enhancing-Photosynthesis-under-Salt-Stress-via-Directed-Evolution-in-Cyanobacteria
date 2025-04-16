@@ -1,0 +1,398 @@
+---
+title: "20240806-96well-validation"
+author: "Zhenxiong Jiang"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(ggplot2)
+library(ggthemes)
+library(tidyr)
+library(dplyr)
+library(ggpubr)
+library(pracma)
+library(gridExtra)
+library(plotrix)
+```
+###BAM and FGM analysis and plotting:
+```{r}
+#Import data
+BAM.validation.dat <- read.csv("mSe3-raw/confirmation/BAM-validation.csv")
+#Filter to include only salt-induced growth, keep only relevant columns
+BAM.validation.dat <- BAM.validation.dat %>% filter(Salt.Induction==1) %>% mutate(OD730.adj=OD730_54h/OD730_0h) %>%
+select(Segregant, OD730.adj, OD730=OD730_54h, Batch)
+```
+Boxplot by batch
+```{r}
+ggplot(BAM.validation.dat, aes(x=as.factor(Batch), y=OD730.adj)) +
+geom_boxplot()
+```
+Boxplots by Segregant
+```{r}
+ggplot(BAM.validation.dat, aes(x=as.factor(Segregant), y=OD730.adj)) +
+geom_boxplot() +geom_hline(yintercept=1.086)
+# median control
+```
+Block ANOVA model
+```{r}
+bam.aov <- aov(log(OD730.adj) ~ as.factor(Batch) + Segregant, data=BAM.validation.dat)
+summary(bam.aov)
+```
+```{r}
+# ANOVA Assumptions
+library(ggfortify)
+autoplot(bam.aov)
+```
+```{r}
+library(emmeans)
+bam.mc <- emmeans(bam.aov,"Segregant")
+contrast(bam.mc,"trt.vs.ctrl", ref="PCC7942")
+```
+Plotting Fig.2c:
+```{r}
+BAM.candidate.data <- 
+BAM.validation.dat[BAM.validation.dat$Segregant=="PCC7942" |
+                              BAM.validation.dat$Segregant=="mSe3-342" |  
+                              BAM.validation.dat$Segregant=="mSe3-470" |
+                              BAM.validation.dat$Segregant=="mSe3-1291" |
+                              BAM.validation.dat$Segregant=="mSe3-1804" |
+                              BAM.validation.dat$Segregant=="mSe3-7265" |
+                              BAM.validation.dat$Segregant=="mSe3-7803" |
+                              BAM.validation.dat$Segregant=="mSe3-7976" |
+                              BAM.validation.dat$Segregant=="mSe3-8345",] %>%
+                  mutate(Category = case_when(Segregant=="PCC7942" ~ "WT",
+                                              Segregant=="mSe3-342" | Segregant=="mSe3-470" | Segregant=="mSe3-1291" | Segregant=="mSe3-1804" ~ "BAM", 
+                                              Segregant=="mSe3-7265" | Segregant=="mSe3-8345" ~ "FGM")) %>% 
+                  mutate(total.fold.change.mean=mean(BAM.validation.dat$OD730.adj)) %>% 
+                  mutate(batch.fold.change.mean=case_when(Batch==1 ~ mean(BAM.validation.dat[BAM.validation.dat$Batch==1,]$OD730.adj),
+                                        Batch==2 ~ mean(BAM.validation.dat[BAM.validation.dat$Batch==2,]$OD730.adj),
+                                        Batch==3 ~ mean(BAM.validation.dat[BAM.validation.dat$Batch==3,]$OD730.adj))) %>% 
+                  mutate(deblocked.fold.change=OD730.adj-batch.fold.change.mean+total.fold.change.mean)
+
+BAM.candidate.data$Segregant <- as.character(BAM.candidate.data$Segregant)
+BAM.candidate.data$Segregant <- factor(BAM.candidate.data$Segregant, levels = c("PCC7942","mSe3-342","mSe3-470","mSe3-1291","mSe3-1804","mSe3-7265","mSe3-8345"))
+
+deblocked.fold.change.plot <-
+ggplot(BAM.candidate.data,mapping=aes(x=factor(Segregant),y=deblocked.fold.change,fill=Category))+
+  geom_violin(width=0.7,scale = "width",trim = FALSE)+
+  geom_boxplot(width=0.2,fill="white",outlier.size = 0.1)+
+  scale_fill_manual(values=c('#B1C07A','#95BE7E','grey50'))+
+  theme_classic()+
+  theme(axis.text.x = element_text(angle = 30, vjust = 1.0, hjust=0.8),
+        legend.position = "none",
+        axis.text=element_text(size=7),
+        axis.title=element_text(size=7))+
+  xlab("")+
+  ylab(bquote("Adjusted fold change"))+
+  #mSe3-342
+  annotate("text", x = 2, y = 6, 
+           label = "*",
+           size = 10 / .pt, color = "#22292F")+
+  #mSe3-470
+  annotate("text", x = 3, y = 6, 
+           label = "****",
+           size = 10 / .pt, color = "#22292F")+
+  #mSe3-1291
+  annotate("text", x = 4, y = 6, 
+           label = "****",
+           size = 10 / .pt, color = "#22292F")+
+  #mSe3-1804
+  annotate("text", x = 5, y = 6, 
+           label = "**",
+           size = 10 / .pt, color = "#22292F")+
+  #mSe3-7265
+  annotate("text", x = 6, y = 6, 
+           label = "***",
+           size = 10 / .pt, color = "#22292F")+
+  #mSe3-8345
+  annotate("text", x = 7, y = 6, 
+           label = "*",
+           size = 10 / .pt, color = "#22292F")
+
+ggsave("./image/20250415-Fig2c.pdf",plot=deblocked.fold.change.plot, device = "pdf", width = 6, height = 6, units = "cm")
+  
+```
+###SPM analysis and plotting:
+```{r}
+#Import data
+SPM.validation.dat <- read.csv("mSe3-raw/confirmation/SPM-validation.csv")
+
+SPM.validation.dat$Batch <- c(rep(1,768),rep(2,768))
+
+SPM.validation.dat <- SPM.validation.dat %>% select(Segregant,OD730=OD730.54h,sucrose=Sucrose.Productivity,Batch)
+
+# Compute adjusted productivity based on previous model
+## Screening Data
+screen <- read.csv("mSe3-mSe0-compiled.csv", row.names=1, header=T, stringsAsFactors=F)
+mse0 <- filter(screen, Segregant.Type=="mSe0-normalization")
+mse0 <- mse0[mse0$Bleached==0,]
+## Model to Adjust Sucrose
+sfit <- lm(log(Sucrose.Productivity) ~ terminal.OD730, data=mse0)
+# Compute fitted values, then residuals
+SPM.validation.dat$fitted <- predict(sfit, newdata=data.frame(terminal.OD730=SPM.validation.dat$OD730))
+SPM.validation.dat$adj.sucrose <- log(SPM.validation.dat$sucrose) - SPM.validation.dat$fitted
+```
+#### Histogram of Adjusted Sucrose Productivity
+Based on this histogram, there are no concerns about the skewness of the adjusted log sucrose productivity.
+```{r}
+hist(SPM.validation.dat$adj.sucrose, xlab="Adjusted Log Sucrose Productivity")
+```
+####Boxplots by Batch
+Batch 1 had higher average sucrose production. The interquartile range is similar for both batches, but batch 1 is slightly left-skewed. The variability is higher in batch 1, mostly due to the outliers with low productivity.
+
+Note: check that batches are correct. I assumed the first 768 rows are batch 1 and the remaining 768 rows are batch 2.
+```{r}
+ggplot(SPM.validation.dat, aes(x=as.factor(Batch), y=adj.sucrose)) +
+  geom_boxplot() +
+  labs(x="Batch", y="Adjusted Log Sucrose Productivity") +
+  theme_bw()
+```
+####Boxplots by Segregant
+Based on this plot, there don’t appear to be any segregants that really stand out in terms of sucrose productivity. However, a few segregants have a median adjusted log sucrose production that is much higher than PCC7942.
+```{r}
+temp <- SPM.validation.dat %>%
+  mutate(control = Segregant=="PCC7942")
+cmed <- median(temp$adj.sucrose[which(temp$control==TRUE)])
+ggplot(temp, aes(x=as.factor(Segregant), y=adj.sucrose, color=control)) +
+  geom_boxplot() +
+  labs(x="Segregant", y="Adjusted Log Sucrose Productivity") +
+  geom_hline(yintercept=cmed) + # median control
+  theme_bw()
+```
+####Block ANOVA model
+The model assumptions look pretty good here. The residuals are approximately normally distributed with relatively constant variance. There is a significant segregant effect, so I have run multiple comparisons below.
+```{r}
+spm.aov <- aov(adj.sucrose ~ as.factor(Batch) + Segregant, data=SPM.validation.dat)
+summary(spm.aov)
+```
+```{r}
+# ANOVA Assumptions
+library(ggfortify)
+autoplot(spm.aov)
+```
+```{r}
+library(emmeans)
+spm.mc <- emmeans(spm.aov, "Segregant")
+contrast(spm.mc, "trt.vs.ctrl", ref="PCC7942")
+```
+Here is a table showing only the segregants that are significantly different from the control. There were only 2 segregants with significantly elevated adjusted log sucrose productivity: 7803 and 7976. The other 3 segregants that were significantly different from the control all had negative estimates, meaning they actually had lower sucrose productivity than the control.
+```{r}
+results <- summary(contrast(spm.mc, "trt.vs.ctrl", ref="PCC7942"))
+diff <- which(results$p.value<0.05)
+results[diff,]
+```
+Calculate the residual based on the model:
+```{r}
+SPM.final.candidate.dat <- SPM.validation.dat[(SPM.validation.dat$Segregant=="mSe3-7803"|SPM.validation.dat$Segregant=="mSe3-7976"|SPM.validation.dat$Segregant=="PCC7942")&(SPM.validation.dat$sucrose>0),] %>% mutate(Residual=0)
+
+SPM.final.candidate.dat[SPM.final.candidate.dat$OD730<breakpoint,]$Residual <- log10(SPM.final.candidate.dat[SPM.final.candidate.dat$OD730<breakpoint,]$sucrose)-SPM.final.candidate.dat[SPM.final.candidate.dat$OD730<breakpoint,]$OD730*fit33$coefficients[2]-fit33$coefficients[1]
+SPM.final.candidate.dat[SPM.final.candidate.dat$OD730>breakpoint,]$Residual <- log10(SPM.final.candidate.dat[SPM.final.candidate.dat$OD730>breakpoint,]$sucrose)-SPM.final.candidate.dat[SPM.final.candidate.dat$OD730>breakpoint,]$OD730*fit34$coefficients[2]-fit34$coefficients[1]
+SPM.final.candidate.dat <- SPM.final.candidate.dat %>% 
+                  mutate(total.residual.mean=mean(SPM.final.candidate.dat$Residual)) %>% 
+                  mutate(batch.residual.mean=case_when(Batch==1 ~ mean(SPM.final.candidate.dat[SPM.final.candidate.dat$Batch==1,]$Residual),
+                                        Batch==2 ~ mean(SPM.final.candidate.dat[SPM.final.candidate.dat$Batch==2,]$Residual),
+                                        Batch==3 ~ mean(SPM.final.candidate.dat[SPM.final.candidate.dat$Batch==3,]$Residual))) %>% 
+                  mutate(deblocked.fold.change=Residual-batch.residual.mean+total.residual.mean) %>% 
+                  mutate(Category=case_when(Segregant=="PCC7942" ~ "WT",
+                                            Segregant=="mSe3-7803" ~ "SPM",
+                                            Segregant=="mSe3-7976" ~ "SPM"))
+
+SPM.final.candidate.dat$Segregant <- as.character(SPM.final.candidate.dat$Segregant)
+SPM.final.candidate.dat$Segregant <- factor(SPM.final.candidate.dat$Segregant, levels = c("PCC7942","mSe3-7803","mSe3-7976"))
+
+```
+Plotting Fig.2d
+```{r}
+deblocked.residual.plot <-
+ggplot(SPM.final.candidate.dat,mapping=aes(x=factor(Segregant),y=deblocked.fold.change,fill=Category),width=1)+
+  geom_violin(width=0.7, scale = "width",trim = FALSE)+
+  geom_boxplot(width=0.2,fill="white",outlier.size = 0.1)+
+  scale_fill_manual(values=c('#43BC97','grey50'))+
+  theme_classic()+
+  theme(axis.text.x = element_text(angle = 30, vjust = 1.0, hjust=0.8),
+        legend.position = "none",
+        axis.text=element_text(size=7),
+        axis.title=element_text(size=7))+
+  xlab("")+
+  ylab(bquote("Adjusted Residual"))+
+  annotate("text", x = 2, y = 1, 
+           label = "*",
+           size = 10 / .pt, color = "#22292F")+
+  annotate("text", x = 3, y = 1, 
+           label = "**",
+           size = 10 / .pt, color = "#22292F")
+
+ggsave("./image/20250415-Fig2d.pdf",plot=deblocked.residual.plot, device = "pdf", width = 4, height = 6, units = "cm")
+```
+
+#Fig.2e: Dry Biomass accumulation over 24h under 300uE light and 150mM NaCl:
+OE strains didn't work well, probably because the status of strains are not optimal:
+202503: Dry biomass measurement:
+```{r}
+OE6 <- c(0.0166,0.0163,0.0157,0.0149)
+OE8 <- c(0.0157,0.0152,0.0161,0.0145)
+OE5 <- c(0.017,0.0181,0.0172,0.0162)
+OE9 <- c(0.0162,0.0172,0.0182,0.0141)
+
+dry.biomass <- tibble(sample=c(rep("OE5",4),rep("OE6",4),rep("OE8",4),rep("OE9",4)),
+                      dry.biomass=c(OE5,OE6,OE8,OE9))
+dry.biomass.stat <- dry.biomass %>% group_by(sample) %>% summarise(biomass.mean=mean(dry.biomass),biomass.std=sd(dry.biomass))
+
+ggplot(dry.biomass.stat)+
+  geom_col(mapping=aes(x=sample,y=biomass.mean))+
+  geom_errorbar(mapping=aes(x=sample,ymin = biomass.mean-biomass.std,ymax=biomass.mean+biomass.std))+
+  xlab("Strains")+
+  ylab("Biomass/g")+
+  theme_classic()+
+  theme(plot.margin = unit(c(0,0,0,0),"cm"),
+        legend.position = "none",
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.text=element_text(size=40/ .pt),
+        axis.title=element_text(size=40/ .pt))+
+  scale_y_continuous(expand = c(0,0),limits=c(0,0.024))
+```
+20250405-dry biomass of mSe3:
+```{r}
+mSe0 <- c(0.0129,0.0128,0.0122,0.0127,0.0117,0.0120)
+mSe3.470 <- c(0.0147,0.0146,0.0143)
+mSe3.1291 <- c(0.0134,0.0129,0.0129)
+mSe3.7265 <- c(0.0140,0.0155,0.0149)
+mSe3.8345 <- c(0.0141,0.0137,0.0136)
+mSe3.342 <- c(0.0139,0.0148,0.0141)
+mSe3.1804 <- c(0.0166,0.0166,0.0152)
+```
+One-sided T test on dry biomass:
+```{r}
+t.test(mSe0,mSe3.342,alternative = "less")
+t.test(mSe0,mSe3.470,alternative = "less")
+t.test(mSe0,mSe3.1291,alternative = "less")
+t.test(mSe0,mSe3.1804,alternative = "less")
+t.test(mSe0,mSe3.7265,alternative = "less")
+t.test(mSe0,mSe3.8345,alternative = "less")
+```
+Plotting:
+```{r}
+mSe3.dry.biomass <- tibble(strain=c(rep("mSe0",6),rep("mSe3-342",3),rep("mSe3-470",3),rep("mSe3-1291",3),rep("mSe3-1804",3),rep("mSe3-7265",3),rep("mSe3-8345",3)),
+                      dry.biomass=c(mSe0*1000/80,mSe3.342*1000/80,mSe3.470*1000/80,mSe3.1291*1000/80,mSe3.1804*1000/80,mSe3.7265*1000/80,mSe3.8345*1000/80),
+                      type=c(rep("WT",6),rep("BAM",3),rep("BAM",3),rep("BAM",3),rep("BAM",3),rep("FGM",3),rep("FGM",3)))
+mSe3.dry.biomass$strain <- factor(mSe3.dry.biomass$strain, levels = c("mSe0","mSe3-342","mSe3-470","mSe3-1291","mSe3-1804","mSe3-7265","mSe3-8345"))
+mSe3.dry.biomass.stat <- mSe3.dry.biomass %>% group_by(strain) %>% summarise(biomass.mean=mean(dry.biomass),biomass.std=sd(dry.biomass)) %>% mutate(type=c("WT","BAM","BAM","BAM","BAM","FGM","FGM"))
+
+dry.biomass.plot <- 
+  ggplot()+
+  geom_col(data = mSe3.dry.biomass.stat, mapping = aes(x=strain,y=biomass.mean,color=type,fill=type,width=0.5),position = "dodge")+
+  scale_fill_manual(values=c('#B1C07A','#95BE7E','grey50'))+
+  scale_color_manual(values=c("grey0","grey0","grey0"))+
+  geom_point(data=mSe3.dry.biomass, mapping=aes(x=strain,y=dry.biomass,color=type),
+             position=position_jitterdodge(jitter.width = 0.2,dodge.width=0.5),
+             size=0.8)+
+  geom_errorbar(data = mSe3.dry.biomass.stat, mapping = aes(x=strain,ymin=biomass.mean-biomass.std,ymax=biomass.mean+biomass.std,color=type),position = position_dodge(width = 0.5),width=0.3)+
+  xlab("")+
+  ylab("Dry biomass (mg/mL)")+
+  theme_classic()+
+  theme(axis.text.x = element_text(angle = 30, vjust = 1.0, hjust=0.8),
+        plot.margin = unit(c(0,0,0,0),"cm"),
+        legend.position = "none",
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.text=element_text(size=20/ .pt),
+        axis.title=element_text(size=20/ .pt),
+        axis.title.y = element_text(vjust = 0.5, hjust=1.0))+
+  annotate("text", x = 2, y = 0.24, 
+           label = "**",
+           size = 13 / .pt, color = "#22292F")+
+  annotate("text", x = 3, y = 0.24, 
+           label = "****",
+           size = 13 / .pt, color = "#22292F")+
+  annotate("text", x = 4, y = 0.24, 
+           label = "*",
+           size = 13 / .pt, color = "#22292F")+
+  annotate("text", x = 5, y = 0.24, 
+           label = "**",
+           size = 13 / .pt, color = "#22292F")+
+    annotate("text", x = 6, y = 0.24, 
+           label = "**",
+           size = 13 / .pt, color = "#22292F")+
+    annotate("text", x = 7, y = 0.24, 
+           label = "***",
+           size = 13 / .pt, color = "#22292F")+
+  scale_y_continuous(expand = c(0,0),limits=c(0,0.29))
+
+ggsave(filename = file.path("./image","20250411-Fig2e.pdf"),plot = dry.biomass.plot, device = "pdf", width = 7, height = 3, units = "cm")
+```
+
+#Fig.2f: O2 evolution for mSe3 strains under 300uE and 150mM NaCl:
+```{r}
+mSe0.O2 <- c(29.6943433,24.4770489,33.19353061,27.55932518,34.92423367)
+mSe3.342.O2 <- c(50.4794984,33.4528419,33.7171692)
+mSe3.470.O2 <- c(37.1825889,38.244947,42.1263234)
+mSe3.1291.O2 <- c(32.40843244,23.17091745,29.8824693)
+mSe3.1804.O2 <- c(36.3006804,31.2862614,35.8273828)
+mSe3.7265.O2 <- c(37.83507453,40.57278486,36.09566203)
+mSe3.8345.O2 <- c(36.46643386,38.9702933,44.6077611)
+```
+One sided T test:
+```{r}
+t.test(mSe0.O2,mSe3.342.O2,alternative="less")
+t.test(mSe0.O2,mSe3.470.O2,alternative="less")
+t.test(mSe0.O2,mSe3.1291.O2,alternative="less")
+t.test(mSe0.O2,mSe3.1804.O2,alternative="less")
+t.test(mSe0.O2,mSe3.7265.O2,alternative="less")
+t.test(mSe0.O2,mSe3.8345.O2,alternative="less")
+```
+Plotting:
+```{r}
+mSe3.O2 <- tibble(strain=c(rep("mSe0",5),rep("mSe3-342",3),rep("mSe3-470",3),rep("mSe3-1291",3),rep("mSe3-1804",3),rep("mSe3-7265",3),rep("mSe3-8345",3)),
+                      O2.evo=c(mSe0.O2,mSe3.342.O2,mSe3.470.O2,mSe3.1291.O2,mSe3.1804.O2,mSe3.7265.O2,mSe3.8345.O2),
+                      type=c(rep("WT",5),rep("BAM",3),rep("BAM",3),rep("BAM",3),rep("BAM",3),rep("FGM",3),rep("FGM",3)))
+mSe3.O2$strain <- factor(mSe3.O2$strain, levels = c("mSe0","mSe3-342","mSe3-470","mSe3-1291","mSe3-1804","mSe3-7265","mSe3-8345"))
+mSe3.O2.stat <- mSe3.O2 %>% group_by(strain) %>% summarise(evo.mean=mean(O2.evo),evo.std=sd(O2.evo)) %>% mutate(type=c("WT","BAM","BAM","BAM","BAM","FGM","FGM"))
+
+O2.evo.plot <- 
+  ggplot()+
+  geom_col(data = mSe3.O2.stat, mapping = aes(x=strain,y=evo.mean,color=type,fill=type,width=0.5),position = "dodge")+
+  scale_fill_manual(values=c('#B1C07A','#95BE7E','grey50'))+
+  scale_color_manual(values=c("grey0","grey0","grey0"))+
+  geom_point(data=mSe3.O2, mapping=aes(x=strain,y=O2.evo,color=type),
+             position=position_jitterdodge(jitter.width = 0.2,dodge.width=0.5),
+             size=0.8)+
+  geom_errorbar(data = mSe3.O2.stat, mapping = aes(x=strain,ymin=evo.mean-evo.std,ymax=evo.mean+evo.std,color=type),position = position_dodge(width = 0.5),width=0.3)+
+  xlab("")+
+  ylab(expression(atop("O"[2] * " evolution rate", "(nmol/mL/s/OD"[730] * ")")))+
+  theme_classic()+
+  theme(axis.text.x = element_text(angle = 30, vjust = 1.0, hjust=0.8),
+        plot.margin = unit(c(0,0,0,0),"cm"),
+        legend.position = "none",
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.text=element_text(size=20/ .pt),
+        axis.title=element_text(size=20/ .pt),
+        axis.title.y = element_text(vjust = 0.5, hjust=1.0))+
+  annotate("text", x = 2, y = 59, 
+           label = expression(paste(italic(p),"=0.12")),
+           size = 7 / .pt, color = "#22292F")+
+  annotate("text", x = 3, y = 57, 
+           label = "**",
+           size = 13 / .pt, color = "#22292F")+
+  annotate("text", x = 4, y = 59, 
+           label = "ns",
+           size = 7 / .pt, color = "#22292F")+
+  annotate("text", x = 5, y = 59, 
+           label = expression(paste(italic(p),"=0.06")),
+           size = 7 / .pt, color = "#22292F")+
+    annotate("text", x = 6, y = 57, 
+           label = "**",
+           size = 13 / .pt, color = "#22292F")+
+    annotate("text", x = 7, y = 57, 
+           label = "*",
+           size = 13 / .pt, color = "#22292F")+
+  scale_y_continuous(expand = c(0,0),limits=c(0,65))
+
+ggsave(filename = file.path("./image","20250411-Fig2f.pdf"),plot = O2.evo.plot, device = "pdf", width = 7, height = 3, units = "cm")
+```
+
+
