@@ -1,0 +1,127 @@
+---
+title: "20200818-Extended-Fig4"
+author: "Zhenxiong Jiang"
+date: "2024-08-18"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+##MBP 2015 laptop
+if (Sys.info()[4]=="jiangzhenxiongs-MacBook-Pro.local" | Sys.info()[4]=="ssrb-vpn1-6-239.vpn.ufl.edu" ){ 
+  knitr::opts_knit$set(root.dir = "/Users/Zhenxiong/OneDrive - Duke University/Data_file/Zhenxiong_Shaun_Jiang/data/growthcurve")
+  source('/Users/Zhenxiong/OneDrive - Duke University/Data_file/Zhenxiong_Shaun_Jiang/scripts/loader_fxns.R')
+} ##MBP 2021 Lab laptop 
+if (Sys.info()[4]=="sandbox.nerdc.ufl.edu"){
+  knitr::opts_knit$set(root.dir = "/Users/jiangz49/OneDrive - University of Florida/Data_file/Zhenxiong_Shaun_Jiang/data/growthcurve")
+  source('/Users/jiangz49/OneDrive - University of Florida/Data_file/Zhenxiong_Shaun_Jiang/scripts/loader_fxns.R')
+} #My Ubuntu
+if (Sys.info()[4]=="theexiledduke"){
+  knitr::opts_knit$set(root.dir = "/home/the-exiled-duke/Documents/manuscript-plotting/fig2b")
+  source('/home/the-exiled-duke/Documents/manuscript-plotting/fig2b/loader_fxns.R')
+}
+
+library(dplyr)
+library(ggplot2)
+library(cowplot)
+library(ggrepel)
+library(patchwork)
+library(grid)
+library(ggpubr)
+library(tidyr)
+library(gplots)
+```
+
+```{r}
+OD630.blank.list <- list.files(pattern = "20220129_OD630-blank-plate.*\\.txt")
+OD730.blank.list <- list.files(pattern = "20220129_OD730-blank-plate.*\\.txt")
+OD730.blank.col <- numeric(8*55)
+OD630.blank.col <- numeric(8*55)
+OD730.blank.col <- as.numeric(OD730.blank.col)
+OD630.blank.col <- as.numeric(OD630.blank.col)
+for (i in 1:length(OD630.blank.list)){
+  OD630.blank.col[(96*i-95):(96*i)] <- sampOD630Loader(OD630.blank.list[i])
+}
+for (i in 1:length(OD730.blank.list)){
+  OD730.blank.col[(96*i-95):(96*i)] <- sampOD730Loader(OD730.blank.list[i])
+}
+OD630.blank.col[329:336] <- OD630.blank.col[321:328]
+OD730.blank.col[329:336] <- OD730.blank.col[321:328]
+
+OD630.blank.col <- OD630.blank.col[1:440]
+OD730.blank.col <- OD730.blank.col[1:440]
+
+###
+###manually import OD730 and OD630
+sheet <- read.csv("20220129-OD730-OD630.csv")
+OD730.col <- sheet$OD730
+OD630.col <- sheet$OD630
+###
+
+OD730.ini <- OD730.col-OD730.blank.col
+OD630.ini <- OD630.col-OD630.blank.col
+
+time.point <- floor(seq(0,54.9,by=0.125))
+nRow.plate <- rep(seq(1,8,by=1),55)
+nCol.plate.idx <- c(7,1,9,3,11,5,4,7,4,6,7,7,8,6,5,3,6,10,8,7,8,10,2,8,3,11,6,5,12,12,3,2,1,5,3,11,6,2,12,10,8,9,11,1,9,2,12,12,8,4,4,10,4,5,10)
+nCol.plate <- numeric(55*8)
+for (i in 1:length(nCol.plate.idx)){
+  nCol.plate[(8*i-7):(8*i)] <- rep(nCol.plate.idx[i],8)
+}
+nPlate.idx <- c(2,4,3,5,1,3,3,4,5,1,5,3,4,3,5,4,2,3,2,1,3,5,3,1,2,5,4,1,2,4,3,5,2,4,1,4,5,2,5,1,5,1,2,3,2,4,1,3,5,2,1,4,4,2,2)
+plate.row <- c(2,2,2,3,3)
+plate.col <- c(2,3,4,4,5)
+nRow.shaker <- numeric(55*8)
+nCol.shaker <- numeric(55*8)
+for (i in 1:length(nPlate.idx)){
+  nRow.shaker[(8*i-7):(8*i)] <- rep(plate.row[nPlate.idx[i]],8)
+  nCol.shaker[(8*i-7):(8*i)] <- rep(plate.col[nPlate.idx[i]],8)
+}
+
+dat <- as.data.frame(cbind(time.point,OD730.col,OD630.col,OD730.ini,OD630.ini,nRow.shaker,nCol.shaker,nRow.plate,nCol.plate))
+dat <- as_tibble(dat)
+
+dat <- dat %>% mutate(stress=if_else(time.point<24,"0","1"))
+dat <- dat %>% mutate(spec.OD730 = 1.7158*((OD730.ini-0.03775885)^2)+1.0242*(OD730.ini-0.03775885)+0.105)
+dat <- dat %>% mutate(spec.OD630 = 1.7158*((OD630.ini-0.03775885)^2)+1.0242*(OD630.ini-0.03775885)+0.105)
+
+part.1 <- dat[(dat$stress==0)&(dat$time.point>4),]
+part.2 <- dat[dat$stress==1,]
+exp.fit.1 <- lm(log(part.1$spec.OD730)~part.1$time.point)
+exp.fit.2 <- lm(log(part.2$spec.OD730)~part.2$time.point)
+time.point <- seq(0,24,by=0.5)
+predict.1 <- tibble(time.point=time.point,predicted.OD730=exp(exp.fit.1$coefficients[1]+exp.fit.1$coefficients[2]*time.point))
+predict.2 <- tibble(time.point=time.point,predicted.OD730=exp(exp.fit.2$coefficients[1]+exp.fit.2$coefficients[2]*time.point))
+
+```
+```{r}
+summary(exp.fit.1)
+summary(exp.fit.2)
+```
+
+```{r}
+plot1 <- 
+ggplot()+
+  geom_point(dat,mapping=aes(x=time.point,y=spec.OD730,color=stress,alpha=stress))+
+  xlab("Time (h)")+
+  ylab(bquote(OD["730"]))+
+  theme_classic()+
+  theme(legend.position = c(1.2, 0.15),
+        legend.title = element_text(size=0),
+        legend.text = element_text(size=0),
+        legend.background = element_rect(size=0),
+        axis.text=element_text(size=12),
+        axis.title=element_text(size=12))+
+  scale_alpha_manual(values = c(1, 1))+
+  scale_color_manual(values = c('greenyellow','green4'))+
+  geom_vline(xintercept=23.9, linetype='dashed', color='black', size=0.7)+
+  #geom_function(fun=function(x) exp(exp.fit.1$coefficients[1]+exp.fit.1$coefficients[2]*x),linetype='dashed')+
+  #geom_function(fun=function(x) exp(exp.fit.2$coefficients[1]+exp.fit.2$coefficients[2]*x),linetype='dashed')+
+  annotate('text', x = 10.5, y = 0.18, label = "P[1]==e^{0.0175*t-2.8794}",parse = TRUE,size=4)+
+  annotate('text', x = 8.7, y = 0.16, label = "R^2==0.8016",parse = TRUE,size=4)+
+  annotate('text',x=40,y=0.18,label="P[2]==e^{0.0242*t-3.0931}",parse = TRUE,size=4)+
+  annotate('text', x = 38.2, y = 0.16, label = "R^2==0.9259",parse = TRUE,size=4)
+
+ggsave(filename = file.path("../image","20220818-mSe0-growth-curve.pdf"),plot = plot1, device = "pdf", width = 15, height = 9, units = "cm")
+```
+

@@ -1,0 +1,514 @@
+---
+title: "round1plus2"
+author: "Zhenxiong Jiang"
+date: "Updated 08/13/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+dat <- read.csv('/Users/Zhenxiong/OneDrive - Duke University/Data_file/Zhenxiong_Shaun_Jiang/data/compiled_rounds.csv',header = T)
+setwd("/Users/Zhenxiong/OneDrive - Duke University/Data_file/Zhenxiong_Shaun_Jiang/data")
+plot(dat$Spec.OD.730,dat$Sucrose.Productivity..mg.L.day.)
+plot(dat$Specific.Productivity..mg.L.day.OD730.)
+```
+
+Delete the whole dataset where abnormal values were included, such as negative OD730
+
+```{r}
+
+dat$keeper <- 1
+for (i in 1:nrow(dat)){
+  if (dat[i,2]<0){
+    dat[i,7] <- 0
+  }
+}
+
+sum(dat$keeper)
+
+batch <- 0
+for (i in 1:nrow(dat)){
+  if (dat[i,7]==0){
+    batch <- dat[i,5]
+  }
+  for (j in 1:nrow(dat)){
+    if (dat[j,5]==batch){
+      dat[j,7]<-0
+    }
+  }
+}
+
+sum(dat$keeper)
+```
+
+After deleting all negative OD730 value-included samples, we still observed abnormality based on obvious linear and reciprocal relationship between OD730 vs specific productivity and OD730 vs productivity, as is shown below:
+
+```{r}
+trunc <- dat[dat$keeper==1,]
+colnames(trunc) <- c("strain_index","OD730","sucrose_productivity_mg_per_L_per_day","specific_sucrose_productivity_mg_per_L_per_day_per_OD730","Date","mutation.round","keeper")
+
+plot(trunc$OD730,trunc$sucrpse_productivity_mg_per_L_per_day)
+plot(trunc$OD730,trunc$specific_sucrose_productivity_mg_per_L_per_day_per_OD730)
+```
+
+Before starting to handle abnormal datasets, we wish to know all batches of the whole dataset, therefore the following code was included to list all batches which were represented by date when data was collected.
+
+Now we create a separate dateset for each batch for easier visualization of dataset, as well as more efficient abnormal data identification.
+
+```{r}
+## split the whole dataset into days for abnormal sets
+all.date <- unique(trunc$Date)
+for (i in 1:length(all.date)){
+  subdat.by.date <- trunc[trunc$Date==all.date[i],]
+  plot(subdat.by.date$OD730,subdat.by.date$specific_sucrose_productivity,main = as.character(all.date[i]))
+  plot(subdat.by.date$OD730,subdat.by.date$sucrose_productivity,main = as.character(all.date[i]))
+  hist(subdat.by.date$OD730,main = as.character(all.date[i]))
+  hist(subdat.by.date$sucrose_productivity,main = as.character(all.date[i]))
+  hist(subdat.by.date$specific_sucrose_productivity,main = as.character(all.date[i]))
+}
+```
+
+Based on previous result, some abnormal data was observed with a linear/reciprocal relationship in productivity vs OD730 plot and specific productivity vs OD730 plot. These abnormal data was deleted as was coded below:
+
+```{r}
+## clean up data of 01/07/20
+dat10720 <- trunc[trunc$Date==10720,]
+dat10720.trunc <- dat10720[dat10720$sucrose_productivity_mg_per_L_per_day >4,]
+## clean up data of 01/10/20
+dat11020 <- trunc[trunc$Date==11020,]
+dat11020.trunc <- dat11020[dat11020$sucrose_productivity_mg_per_L_per_day >4,]
+## clean up data of 01/16/20
+dat11620 <- trunc[trunc$Date==11620,]
+dat11620.trunc <- dat11620[dat11620$sucrose_productivity_mg_per_L_per_day >4,]
+## clean up data of 01/11/20
+dat11120 <- trunc[trunc$Date==11120,]
+dat11120.trunc <- dat11120[dat11120$sucrose_productivity_mg_per_L_per_day >25,]
+## clean up data of 01/17/20
+dat11720 <- trunc[trunc$Date==11720,]
+dat11720.trunc <- dat11720[dat11720$sucrose_productivity_mg_per_L_per_day !=22.4,]
+## clean up data of 01/14/20
+dat11420 <- trunc[trunc$Date==11420,]
+dat11420.trunc <- dat11420[dat11420$sucrose_productivity_mg_per_L_per_day!=3.2,]
+## clean up data of 03/19/21
+dat31921 <- trunc[trunc$Date==31921,]
+solver031921 <- lm(sucrose_productivity_mg_per_L_per_day~OD730,data = dat31921[dat31921$OD730>0.55,])
+solver031921$coefficients
+summary(solver031921)
+solver031921.fit <- 23.04039 - 15.24046*dat31921$OD730
+fit.real.diff <- abs(solver031921.fit-dat31921$sucrose_productivity_mg_per_L_per_day)
+dat31921 <- cbind(dat31921,fit.real.diff)
+dat31921 <- dat31921[dat31921$fit.real.diff>1,]
+plot(dat31921$OD730,dat31921$sucrose_productivity_mg_per_L_per_day)
+plot(dat31921$OD730,dat31921$specific_sucrose_productivity_mg_per_L_per_day_per_OD730)
+dat31921 <- dat31921[,1:7]
+## clean up data of 04/01/21
+dat40121 <- trunc[trunc$Date==40121,]
+solver040121 <- lm(sucrose_productivity_mg_per_L_per_day~OD730,data = dat40121[(dat40121$OD730>0.7) & (dat40121$OD730<0.875),])
+summary(solver040121)
+solver040121.fit <- solver040121$coefficients[1] + solver040121$coefficients[2]*dat40121$OD730
+fit.real.diff <- abs(solver040121.fit-dat40121$sucrose_productivity_mg_per_L_per_day)
+dat40121 <- cbind(dat40121,fit.real.diff)
+dat40121 <- dat40121[dat40121$fit.real.diff>0.1,]
+plot(dat40121$OD730,dat40121$sucrose_productivity_mg_per_L_per_day)
+plot(dat40121$OD730,dat40121$specific_sucrose_productivity_mg_per_L_per_day_per_OD730)
+dat40121 <- dat40121[,1:7]
+## clean up data of 01/23/20 - delete the whole set
+dat12320 <- trunc[trunc$Date==12320,]
+dat12320.trunc <- dat12320[dat12320$sucrose_productivity_mg_per_L_per_day >25,]
+
+
+## for rest of the data, remove those specific productivity is equal to 0.
+trunc2 <- trunc[(trunc$Date!=31921) & (trunc$Date!=40121) &(trunc$Date!=11120)& (trunc$Date!=10720)&(trunc$Date!=11020)&(trunc$Date!=11620)&(trunc$Date!=11720)&(trunc$Date!=12320)&(trunc$Date!=20120)&(trunc$Date!=11420),]
+trunc2 <- trunc2[trunc2$specific_sucrose_productivity_mg_per_L_per_day_per_OD730!=0,]
+trunc2 <- rbind(trunc2,dat10720.trunc,dat11020.trunc,dat11620.trunc,dat11120.trunc,dat11720.trunc,dat11420.trunc,dat31921,dat40121,dat12320.trunc)
+#remove all data from confirmation assay
+trunc3 <- trunc2[(trunc2$Date!=41221)&(trunc2$Date!=41421)&(trunc2$Date!=32221)&(trunc2$Date!=40321)&(trunc2$Date!=41621)&(trunc2$Date!=40121),]
+#the trunc4 is the finalized set for 2nd round mutation
+#trunc4 <- trunc3[trunc3$mutation.round==2,]
+trunc4 <- trunc3[(trunc3$mutation.round==2)&(trunc3$strain_index!="CscB_MSU"),]
+trunc4 <- trunc4[trunc4$strain_index!="Se1-1086_CscB",][,1:5]
+#trunc4[trunc4$strain_index=="CscB_MSU",]$strain_index <- "CscB"
+trunc4[trunc4$strain_index=="Se1-1086",]$strain_index <- "mSe1-1086"
+for (i in 1:nrow(trunc4)){
+  if (!is.na(as.numeric(trunc4[i,1]))){
+    trunc4[i,1] <- paste("mSe2",trunc4[i,1],sep="-")
+  }
+}
+#the trunc5 is the finalized set for 1st round mutation
+trunc5 <- trunc3[trunc3$mutation.round!=2,] 
+trunc5 <- trunc5[trunc5$strain_index!="WT",][,1:5]
+for (i in 1:nrow(trunc5)){
+  if (!is.na(as.numeric(trunc5[i,1]))){
+    trunc5[i,1] <- paste("mSe1",trunc5[i,1],sep="-")
+  }
+}
+```
+
+Plotting for 1st round mutation:
+```{r}
+#means and 2-sigma range
+colnames(trunc5) <- c("Segregant","OD730","Sucrose.Productivity","Specific.Productivity","Date")
+trunc5$Segregant.Type <- ""
+trunc5[trunc5$Segregant!="mutS",]$Segregant.Type <- "mSe1"
+trunc5[trunc5$Segregant=="mutS",]$Segregant.Type <- "mSe0"
+trunc5$Strains <- trunc5$Segregant.Type
+#trunc5[trunc5$Segregant=="mSe1-1086",]$Strains <- "mSe1-1086"
+#trunc5[(trunc5$Sucrose.Productivity >= quantile(trunc5$Sucrose.Productivity,probs = 0.99)) | (trunc5$Specific.Productivity >= quantile(trunc5$Specific.Productivity,probs = 0.99)) | (trunc5$OD730 >= quantile(trunc5$OD730,probs = 0.99)),]$Strains <- "mSe1 candidate"
+trunc5[(trunc5$Sucrose.Productivity >= quantile(trunc5$Sucrose.Productivity,probs = 0.99)) | (trunc5$Specific.Productivity >= quantile(trunc5$Specific.Productivity,probs = 0.99)),]$Strains <- "mSe1 candidate"
+
+#means and 2-sigma range
+mutS.OD730.mean <- mean(trunc5[trunc5$Strains=="mutS",]$OD730)
+mutS.OD730.std <- sqrt(var(trunc5[trunc5$Strains=="mutS",]$OD730))
+mutS.OD730.lb <- mutS.OD730.mean - 2*mutS.OD730.std
+mutS.OD730.ub <- mutS.OD730.mean + 2*mutS.OD730.std
+mutS.sucroseProd.mean <- mean(trunc5[trunc5$Strains=="mutS",]$Sucrose.Productivity)
+mutS.sucroseProd.std <- sqrt(var(trunc5[trunc5$Strains=="mutS",]$Sucrose.Productivity))
+mutS.sucroseProd.lb <- mutS.sucroseProd.mean - 2*mutS.sucroseProd.std
+mutS.sucroseProd.ub <- mutS.sucroseProd.mean + 2*mutS.sucroseProd.std
+mutS.specificProd.mean <- mean(trunc5[trunc5$Strains=="mutS",]$Specific.Productivity)
+mutS.specificProd.std <- sqrt(var(trunc5[trunc5$Strains=="mutS",]$Specific.Productivity))
+mutS.specificProd.lb <- mutS.specificProd.mean - 2*mutS.specificProd.std
+mutS.specificProd.ub <- mutS.specificProd.mean + 2*mutS.specificProd.std
+```
+
+
+```{r}
+library(ggplot2)
+library(gridExtra)
+library(ggrepel)
+
+ggplot(trunc5,aes(x=OD730,y=Sucrose.Productivity,color=Strains,alpha=Strains))+
+  geom_point(size=1)+
+  scale_color_manual(values = c('grey66','#F564E3','#619CFF')) + 
+  geom_text(data=trunc5[trunc5$Strains=="mSe1-elite",], aes(label=Segregant),size=1.5, nudge_x = 0,nudge_y=1, color="black",alpha=0.7,check_overlap = TRUE)+
+  xlab(bquote(OD["730"]))+
+  ylab("Sucrose Productivity: mg/L/day")+
+  theme(legend.position = c(0.9, 0.2))+
+  scale_alpha_manual(values = c(.3,1, 1))+
+  theme(panel.grid.minor=element_blank(),panel.grid.major=element_blank())
+
+ggplot(trunc5,aes(x=OD730,y=Specific.Productivity,color=Strains,alpha=Strains))+
+  geom_point(size=1)+
+  scale_color_manual(values = c('grey66','#F564E3','#619CFF')) + 
+  geom_text(data=trunc5[trunc5$Strain.Type=="mSe1-elite",], aes(label=Strain),size=1.5, nudge_x = 0,nudge_y=1, color="black",alpha=0.7,check_overlap = TRUE)+
+  xlab("OD730")+ylab("Specific Sucrose Productivity: mg/L/day/OD")+
+  theme(legend.position = c(0.9, 0.8))+
+  scale_alpha_manual(values = c(.3,1, 1))+
+  theme(panel.grid.minor=element_blank(),panel.grid.major=element_blank())
+```
+
+```{r}
+library("patchwork")
+#edited at 2024/08/23
+scatter1 <- 
+  ggplot(trunc5, mapping=aes(x=OD730,y=Sucrose.Productivity,color=Strains,alpha=Strains),size=0.75)+
+  geom_point()+
+  scale_color_manual(values = c('grey0','grey66','#F564E3')) + 
+  geom_label_repel(data=trunc5[trunc5$Segregant=="mSe1-1086",], aes(label=Segregant),size=2, color="black",alpha=1,max.overlaps = Inf,min.segment.length = unit(0, 'lines'))+
+  #geom_rect(aes(xmin = mutS.OD730.lb, xmax = mutS.OD730.ub, ymin = mutS.sucroseProd.lb, ymax = mutS.sucroseProd.ub), fill = NA,size=0.2, alpha=0.1, linetype="longdash",color="grey0") +
+  xlab(bquote(bold(OD[bold("730")])))+
+  ylab("Sucrose Productivity  (mg/L/day)")+
+  theme_classic()+
+  theme(legend.position = c(0.83, 0.9),
+        legend.title = element_text(size=6),
+        legend.text = element_text(size = 6),
+        legend.background = element_rect(size=.3),
+        axis.title = element_text(size=7,face = "bold"),
+        axis.text = element_text(size=7,face = "bold"))+
+  scale_alpha_manual(values = c(1,.3, 1))
+  #theme(panel.grid.minor=element_blank(),panel.grid.major=element_blank())
+
+#edited at 2024/08/18
+scatter2 <- 
+  ggplot(trunc5,aes(x=OD730,y=Specific.Productivity,color=Strains,alpha=Strains),size=0.75)+
+  geom_point()+
+  scale_color_manual(values = c('grey0','grey66','#F564E3')) + 
+  geom_text_repel(data=trunc5[trunc5$Strains=="mSe1-elite",], aes(label=Segregant),size=4, color="black",alpha=1,max.overlaps = Inf)+
+  geom_rect(aes(xmin = mutS.OD730.lb, xmax = mutS.OD730.ub, ymin = mutS.specificProd.lb, ymax = mutS.specificProd.ub), fill = NA,size=0.2, alpha=0.1, linetype="longdash",color="grey0") +
+  xlab(bquote(bold(OD[bold("730")])))+
+  ylab("Specific Sucrose Productivity (mg/L/day/OD)")+
+  theme_classic()+
+  theme(legend.position = c(0.83, 0.9),
+        legend.title = element_text(size=6),
+        legend.text = element_text(size = 6),
+        legend.background = element_rect(size=.3),
+        axis.title = element_text(size=7,face = "bold"),
+        axis.text = element_text(size=7,face = "bold"))+
+  scale_alpha_manual(values = c(1,.3, 1))
+
+hist_top1 <- ggplot(trunc5,aes(x=OD730,color=Segregant.Type))+
+  geom_histogram(position="identity",fill="transparent",alpha=0.5)+
+  xlab("")+ylab("")+scale_x_continuous(breaks=NULL)+
+  scale_color_manual(values = c('grey66','#619CFF'))+
+  theme_void()+
+  theme(panel.grid.minor=element_blank(),panel.grid.major=element_blank(),legend.position = "none")
+
+hist_right1 <- ggplot(trunc5,aes(x=Sucrose.Productivity,color=Segregant.Type))+
+  geom_histogram(position="identity",fill="transparent",alpha=0.5)+coord_flip()+
+  xlab("")+ylab("")+scale_y_continuous(breaks=NULL)+
+  scale_color_manual(values = c('grey66','#619CFF')) +
+  theme_void()+
+  theme(panel.grid.minor=element_blank(),panel.grid.major=element_blank(),legend.position = "none")
+
+scatter2 <- ggplot(trunc5,aes(x=OD730,y=Specific.Productivity,color=Strains,alpha=Strains))+
+  geom_point(size=2)+
+  scale_color_manual(values = c('grey66','#F564E3','#619CFF')) + 
+  geom_text_repel(data=trunc5[trunc5$Strains=="mSe1-elite",], aes(label=Segregant),size=4, color="black",alpha=1,max.overlaps = Inf)+
+  geom_rect(aes(xmin = mutS.OD730.lb, xmax = mutS.OD730.ub, ymin = mutS.specificProd.lb, ymax = mutS.specificProd.ub), fill = NA,size=0.2, alpha=0.1, linetype="longdash",color="#619CFF") +
+  xlab(bquote(OD["730nm"]))+ylab("Specific Sucrose Productivity (mg/L/day/OD)")+
+  theme_classic()+
+  theme(legend.position = c(0.94, 0.9),legend.title = element_text(size=14),legend.text = element_text(size = 10),legend.background = element_rect(size=.5))+
+  scale_alpha_manual(values = c(.3,1, 1))+
+  theme(panel.grid.minor=element_blank(),panel.grid.major=element_blank())
+
+hist_right2 <- ggplot(trunc5,aes(x=Specific.Productivity,color=Segregant.Type))+geom_histogram(position="identity",fill="transparent",alpha=0.5)+
+  coord_flip()+xlab("")+ylab("")+
+  scale_y_continuous(breaks=NULL)+scale_color_manual(values = c('grey66','#619CFF')) +
+  theme_void()+
+  theme(panel.grid.minor=element_blank(),panel.grid.major=element_blank(),legend.position = "none")
+#plot1 <- grid.arrange(hist_top1, empty, scatter1, hist_right1, ncol=2, nrow=2, widths=c(7, 1), heights=c(1, 7))
+#plot2 <- grid.arrange(hist_top1, empty, scatter2, hist_right2, ncol=2, nrow=2, widths=c(7, 1), heights=c(1, 7))
+plot1 <- hist_top1 + plot_spacer() + scatter1 + hist_right1 + plot_layout(ncol = 2, nrow = 2, widths = c(9, 1), heights = c(1, 7)) 
+plot2 <- hist_top1 + plot_spacer() + scatter2 + hist_right2 + plot_layout(ncol = 2, nrow = 2, widths = c(9, 1), heights = c(1, 7))
+
+
+ggsave(filename = file.path("~/Google Drive/Shared drives/Wang lab/Data file/Zhenxiong_Shaun_Jiang/data","mSe1-sucroseProd-OD730.jpg"),plot = plot1, device = "jpeg", width = 32, height = 18, units = "cm")
+ggsave(filename = file.path("~/Google Drive/Shared drives/Wang lab/Data file/Zhenxiong_Shaun_Jiang/data","mSe1-specificProd-OD730.jpg"),plot = plot2, device = "jpeg", width = 32, height = 18, units = "cm")
+#2024/08/23
+ggsave(filename = file.path("/Users/Zhenxiong/OneDrive - Duke University/Data_file/Zhenxiong_Shaun_Jiang/data/image","20240823-Extended-Fig1a.pdf"),plot = scatter1, device = "pdf", width = 8, height = 6, units = "cm")
+```
+
+Plotting for 2nd round mutation:
+```{r}
+#means and 2-sigma range
+colnames(trunc4) <- c("Segregant","OD730","Sucrose.Productivity","Specific.Productivity","Date")
+trunc4$Segregant.Type <- ""
+trunc4[trunc4$Segregant!="mutS" & trunc4$Segregant!="CscB" & trunc4$Segregant!="mSe1-1086",]$Segregant.Type <- "mSe2"
+trunc4[trunc4$Segregant=="mutS",]$Segregant.Type <- "mSe0"
+trunc4[trunc4$Segregant=="mSe1-1086",]$Segregant.Type <- "mSe1-1086"
+trunc4$Strains <- trunc4$Segregant.Type
+#trunc4[trunc4$Strain=="CscB",]$Strain.Type <- "CscB"
+trunc4[(trunc4$Sucrose.Productivity >= quantile(trunc4$Sucrose.Productivity,probs = 0.99)) | (trunc4$Specific.Productivity >= quantile(trunc4$Specific.Productivity,probs = 0.99)),]$Strains <- "mSe2 candidate"
+#trunc4[(trunc4$Segregant=="mSe2-842")|(trunc4$Segregant=="mSe2-524")|(trunc4$Segregant=="mSe2-933"),]$Strains <- "Candidate"
+#means and 2-sigma range
+mutS.OD730.mean <- mean(trunc4[trunc4$Strains=="mutS",]$OD730)
+mutS.OD730.std <- sqrt(var(trunc4[trunc4$Strains=="mutS",]$OD730))
+mutS.OD730.lb <- mutS.OD730.mean - 2*mutS.OD730.std
+mutS.OD730.ub <- mutS.OD730.mean + 2*mutS.OD730.std
+mutS.sucroseProd.mean <- mean(trunc4[trunc4$Strains=="mutS",]$Sucrose.Productivity)
+mutS.sucroseProd.std <- sqrt(var(trunc4[trunc4$Strains=="mutS",]$Sucrose.Productivity))
+mutS.sucroseProd.lb <- mutS.sucroseProd.mean - 2*mutS.sucroseProd.std
+mutS.sucroseProd.ub <- mutS.sucroseProd.mean + 2*mutS.sucroseProd.std
+mutS.specificProd.mean <- mean(trunc4[trunc4$Strains=="mutS",]$Specific.Productivity)
+mutS.specificProd.std <- sqrt(var(trunc4[trunc4$Strains=="mutS",]$Specific.Productivity))
+mutS.specificProd.lb <- mutS.specificProd.mean - 2*mutS.specificProd.std
+mutS.specificProd.ub <- mutS.specificProd.mean + 2*mutS.specificProd.std
+
+CscB.OD730.mean <- mean(trunc4[trunc4$Strains=="CscB",]$OD730)
+CscB.OD730.std <- sqrt(var(trunc4[trunc4$Strains=="CscB",]$OD730))
+CscB.OD730.lb <- CscB.OD730.mean - 2*CscB.OD730.std
+CscB.OD730.ub <- CscB.OD730.mean + 2*CscB.OD730.std
+CscB.specificProd.mean <- mean(trunc4[trunc4$Strains=="CscB",]$Specific.Productivity)
+CscB.specificProd.std <- sqrt(var(trunc4[trunc4$Strains=="CscB",]$Specific.Productivity))
+CscB.specificProd.lb <- CscB.specificProd.mean - 2*CscB.specificProd.std
+CscB.specificProd.ub <- CscB.specificProd.mean + 2*CscB.specificProd.std
+CscB.sucroseProd.mean <- mean(trunc4[trunc4$Strains=="CscB",]$Sucrose.Productivity)
+CscB.sucroseProd.std <- sqrt(var(trunc4[trunc4$Strains=="CscB",]$Sucrose.Productivity))
+CscB.sucroseProd.lb <- CscB.sucroseProd.mean - 2*CscB.sucroseProd.std
+CscB.sucroseProd.ub <- CscB.sucroseProd.mean + 2*CscB.sucroseProd.std
+
+mSe1.1086.OD730.mean <- mean(trunc4[trunc4$Strains=="mSe1-1086",]$OD730)
+mSe1.1086.OD730.std <- sqrt(var(trunc4[trunc4$Strains=="mSe1-1086",]$OD730))
+mSe1.1086.OD730.lb <- mSe1.1086.OD730.mean - 2*mSe1.1086.OD730.std
+mSe1.1086.OD730.ub <- mSe1.1086.OD730.mean + 2*mSe1.1086.OD730.std
+mSe1.1086.specificProd.mean <- mean(trunc4[trunc4$Strains=="mSe1-1086",]$Specific.Productivity)
+mSe1.1086.specificProd.std <- sqrt(var(trunc4[trunc4$Strains=="mSe1-1086",]$Specific.Productivity))
+mSe1.1086.specificProd.lb <- mSe1.1086.specificProd.mean - 2*mSe1.1086.specificProd.std
+mSe1.1086.specificProd.ub <- mSe1.1086.specificProd.mean + 2*mSe1.1086.specificProd.std
+mSe1.1086.sucroseProd.mean <- mean(trunc4[trunc4$Strains=="mSe1-1086",]$Sucrose.Productivity)
+mSe1.1086.sucroseProd.std <- sqrt(var(trunc4[trunc4$Strains=="mSe1-1086",]$Sucrose.Productivity))
+mSe1.1086.sucroseProd.lb <- mSe1.1086.sucroseProd.mean - 2*mSe1.1086.sucroseProd.std
+mSe1.1086.sucroseProd.ub <- mSe1.1086.sucroseProd.mean + 2*mSe1.1086.sucroseProd.std
+```
+
+```{R}
+#edited at 2024/08/23
+scatter3 <- 
+  ggplot(trunc4[trunc4$Segregant.Type!="mSe1-1086",],aes(x=OD730,y=Sucrose.Productivity,color=Strains,alpha=Strains))+
+  geom_point(size=1)+
+  #scale_color_manual(values = c('#F8766D','#F564E3','#B79F00','#619CFF')) + 
+  scale_color_manual(values = c('grey0','grey66','#B79F00')) + 
+  geom_label_repel(data=trunc4[trunc4$Segregant=="mSe2-842",], aes(label=Segregant),size=2, color="black",alpha=1,max.overlaps = Inf, nudge_x = 0.05,hjust = 0,min.segment.length = unit(0, 'lines'))+
+  #geom_rect(aes(xmin = mutS.OD730.lb, xmax = mutS.OD730.ub, ymin = mutS.sucroseProd.lb, ymax = mutS.sucroseProd.ub), fill = NA,size=0.2, alpha=0.1, linetype="longdash",color="#619CFF") +
+  #geom_rect(aes(xmin = CscB.OD730.lb, xmax = CscB.OD730.ub, ymin = CscB.sucroseProd.lb, ymax = CscB.sucroseProd.ub), fill = NA,size=0.2, alpha=0.1, linetype="longdash",color="#F8766D") +
+  #geom_rect(aes(xmin = mSe1.1086.OD730.lb, xmax = mSe1.1086.OD730.ub, ymin = mSe1.1086.sucroseProd.lb, ymax = mSe1.1086.sucroseProd.ub), fill = NA,size=0.2, alpha=0.1, linetype="longdash",color='#F564E3') +
+  xlab(bquote(bold(OD[bold("730")])))+
+  ylab("Sucrose Productivity (mg/L/day)")+
+  theme_classic()+
+  theme(legend.position = c(0.83, 0.85),
+        legend.title = element_text(size=6),
+        legend.text = element_text(size = 6),
+        legend.background = element_rect(size=.3),
+        axis.title = element_text(size=7,face = "bold"),
+        axis.text = element_text(size=7,face = "bold"))+
+  scale_alpha_manual(values = c(1, .2, 1))
+#edited at 2024/08/18
+#scatter4 <- 
+  ggplot(trunc4,aes(x=OD730,y=Specific.Productivity,color=Strains,alpha=Strains))+
+  geom_point(size=1)+
+  scale_color_manual(values = c('#F564E3','#B79F00','grey66','grey0')) + 
+  geom_text_repel(data=trunc4[trunc4$Strains=="Candidate",], aes(label=Segregant),size=4, color="black",alpha=1, max.overlaps = Inf)+
+  #geom_rect(aes(xmin = mutS.OD730.lb, xmax = mutS.OD730.ub, ymin = mutS.specificProd.lb, ymax = mutS.specificProd.ub), fill = NA,size=0.2, alpha=0.1, linetype="longdash",color="#619CFF") +
+  #geom_rect(aes(xmin = CscB.OD730.lb, xmax = CscB.OD730.ub, ymin = CscB.specificProd.lb, ymax = CscB.specificProd.ub), fill = NA,size=0.2, alpha=0.1, linetype="longdash",color="#F8766D") +
+  #geom_rect(aes(xmin = mSe1.1086.OD730.lb, xmax = mSe1.1086.OD730.ub, ymin = mSe1.1086.specificProd.lb, ymax = mSe1.1086.specificProd.ub), fill = NA,size=0.2, alpha=0.1, linetype="longdash",color='#F564E3') +
+  xlab(bquote(bold(OD[bold("730")])))+
+  ylab("Specific Sucrose Productivity (mg/L/day/OD)")+
+  theme_classic()+
+  theme(legend.position = c(0.83, 0.85),
+        legend.title = element_text(size=6),
+        legend.text = element_text(size = 6),
+        legend.background = element_rect(size=.3),
+        axis.title = element_text(size=7,face = "bold"),
+        axis.text = element_text(size=7,face = "bold"))+
+  scale_alpha_manual(values = c(1, 1,.2, 1))
+
+hist_top3 <- ggplot(trunc4,aes(x=OD730,color=Segregant.Type))+
+  geom_histogram(position="identity",fill="transparent",alpha=0.5)+
+  xlab("")+ylab("")+theme(legend.position = "none")+scale_x_continuous(breaks=NULL)+
+  #scale_color_manual(values = c('#F8766D','#F564E3','#B79F00','#619CFF'))+
+  scale_color_manual(values = c('#B79F00','grey66','#619CFF'))+
+  theme_void()+
+  theme(panel.grid.minor=element_blank(),panel.grid.major=element_blank(),legend.position = "none")
+
+hist_right3 <- ggplot(trunc4,aes(x=Sucrose.Productivity,color=Segregant.Type))+
+  geom_histogram(position="identity",fill="transparent",alpha=0.5)+coord_flip()+
+  xlab("")+ylab("")+theme(legend.position = "none")+scale_y_continuous(breaks=NULL)+
+  #scale_color_manual(values = c('#F8766D','#F564E3','#B79F00','#619CFF')) +
+  scale_color_manual(values = c('#B79F00','grey66','#619CFF')) +
+  theme_void()+
+  theme(panel.grid.minor=element_blank(),panel.grid.major=element_blank(),legend.position = "none")
+
+scatter4 <- ggplot(trunc4,aes(x=OD730,y=Specific.Productivity,color=Strains,alpha=Strains))+
+  geom_point(size=1)+
+  #scale_color_manual(values = c('#F8766D','#F564E3','#B79F00','#619CFF')) + 
+  scale_color_manual(values = c('#F564E3','grey66','#B79F00','#619CFF')) + 
+  geom_text_repel(data=trunc4[trunc4$Strains=="mSe2-elite",], aes(label=Segregant),size=4, color="black",alpha=1, max.overlaps = Inf)+
+  geom_rect(aes(xmin = mutS.OD730.lb, xmax = mutS.OD730.ub, ymin = mutS.specificProd.lb, ymax = mutS.specificProd.ub), fill = NA,size=0.2, alpha=0.1, linetype="longdash",color="#619CFF") +
+  #geom_rect(aes(xmin = CscB.OD730.lb, xmax = CscB.OD730.ub, ymin = CscB.specificProd.lb, ymax = CscB.specificProd.ub), fill = NA,size=0.2, alpha=0.1, linetype="longdash",color="#F8766D") +
+  geom_rect(aes(xmin = mSe1.1086.OD730.lb, xmax = mSe1.1086.OD730.ub, ymin = mSe1.1086.specificProd.lb, ymax = mSe1.1086.specificProd.ub), fill = NA,size=0.2, alpha=0.1, linetype="longdash",color='#F564E3') +
+  xlab(bquote(OD["730nm"]))+ylab("Specific Sucrose Productivity (mg/L/day/OD)")+
+  theme_classic()+
+  theme(legend.position = c(0.94, 0.87),legend.title = element_text(size=14),legend.text = element_text(size = 10),legend.background = element_rect(size=.5),panel.grid.minor=element_blank(),panel.grid.major=element_blank())+
+  scale_alpha_manual(values = c(1, .2, 1, 1))
+
+hist_right4 <- ggplot(trunc4,aes(x=Specific.Productivity,color=Segregant.Type))+geom_histogram(position="identity",fill="transparent",alpha=0.5)+coord_flip()+xlab("")+ylab("")+theme(legend.position = "none")+scale_y_continuous(breaks=NULL)+
+  #scale_color_manual(values = c('#F8766D','#F564E3','#B79F00','#619CFF')) +
+  scale_color_manual(values = c('#B79F00','grey66','#619CFF')) +
+  theme_void()+
+  theme(panel.grid.minor=element_blank(),panel.grid.major=element_blank(),legend.position = "none")
+
+#plot3 <- grid.arrange(hist_top3, empty, scatter3, hist_right3, ncol=2, nrow=2, widths=c(4, 1), heights=c(1, 4))
+#plot4 <- grid.arrange(hist_top3, empty, scatter4, hist_right4, ncol=2, nrow=2, widths=c(4, 1), heights=c(1, 4))
+plot3 <- hist_top3 + plot_spacer() + scatter3 + hist_right3 + plot_layout(ncol = 2, nrow = 2, widths = c(9, 1), heights = c(1, 7)) 
+plot4 <- hist_top3 + plot_spacer() + scatter4 + hist_right4 + plot_layout(ncol = 2, nrow = 2, widths = c(9, 1), heights = c(1, 7))
+
+ggsave(filename = file.path("~/Google Drive/Shared drives/Wang lab/Data file/Zhenxiong_Shaun_Jiang/data","mSe2-sucroseProd-OD730.jpg"),plot = plot3, device = "jpeg", width = 32, height = 18, units = "cm")
+ggsave(filename = file.path("./image","mSe2-specificProd-OD730.jpg"),plot = plot4, device = "jpeg", width = 32, height = 18, units = "cm")
+ggsave(filename = file.path("/Users/Zhenxiong/OneDrive - Duke University/Data_file/Zhenxiong_Shaun_Jiang/data/image","20240823-Extended-Fig1c.pdf"),plot = scatter3, device = "pdf", width = 8, height = 6, units = "cm")
+```
+Validation of mSe1-1086 and mSe2-842:
+```{r}
+#dat2 <- read.csv('/Users/Zhenxiong/OneDrive - Duke University/Data_file/Zhenxiong_Shaun_Jiang/data/20240819-mSe1-mSe2-cscB-suc-prod-OD730.csv',header = T)
+dat2 <- read.csv('/Users/jiangz49/OneDrive - University of Florida/Data_file/Zhenxiong_Shaun_Jiang/data/20240819-mSe1-mSe2-cscB-suc-prod-OD730.csv',header = T)
+stat2 <- dat2 %>% group_by(Batch,Day,Strain) %>% summarise(mean=mean(Sucrose.Productivity),sd=sd(Sucrose.Productivity))
+```
+T test:
+```{r}
+t.test(dat2[(dat2$Batch==1)&(dat2$Day==1)&(dat2$Strain=="WT-cscB"),]$Sucrose.Productivity,dat2[(dat2$Batch==1)&(dat2$Day==1)&(dat2$Strain=="mSe1-1086-cscB"),]$Sucrose.Productivity)
+t.test(dat2[(dat2$Batch==1)&(dat2$Day==2)&(dat2$Strain=="WT-cscB"),]$Sucrose.Productivity,dat2[(dat2$Batch==1)&(dat2$Day==2)&(dat2$Strain=="mSe1-1086-cscB"),]$Sucrose.Productivity)
+t.test(dat2[(dat2$Batch==1)&(dat2$Day==3)&(dat2$Strain=="WT-cscB"),]$Sucrose.Productivity,dat2[(dat2$Batch==1)&(dat2$Day==3)&(dat2$Strain=="mSe1-1086-cscB"),]$Sucrose.Productivity)
+t.test(dat2[(dat2$Batch==1)&(dat2$Day==4)&(dat2$Strain=="WT-cscB"),]$Sucrose.Productivity,dat2[(dat2$Batch==1)&(dat2$Day==4)&(dat2$Strain=="mSe1-1086-cscB"),]$Sucrose.Productivity)
+
+t.test(dat2[(dat2$Batch==2)&(dat2$Day==1)&(dat2$Strain=="WT-cscB"),]$Sucrose.Productivity,dat2[(dat2$Batch==2)&(dat2$Day==1)&(dat2$Strain=="mSe2-842-cscB"),]$Sucrose.Productivity)
+t.test(dat2[(dat2$Batch==2)&(dat2$Day==2)&(dat2$Strain=="WT-cscB"),]$Sucrose.Productivity,dat2[(dat2$Batch==2)&(dat2$Day==2)&(dat2$Strain=="mSe2-842-cscB"),]$Sucrose.Productivity)
+t.test(dat2[(dat2$Batch==2)&(dat2$Day==3)&(dat2$Strain=="WT-cscB"),]$Sucrose.Productivity,dat2[(dat2$Batch==2)&(dat2$Day==3)&(dat2$Strain=="mSe2-842-cscB"),]$Sucrose.Productivity)
+t.test(dat2[(dat2$Batch==2)&(dat2$Day==4)&(dat2$Strain=="WT-cscB"),]$Sucrose.Productivity,dat2[(dat2$Batch==2)&(dat2$Day==4)&(dat2$Strain=="mSe2-842-cscB"),]$Sucrose.Productivity)
+```
+
+```{r}
+#mSe1.validation <- 
+ggplot()+
+  geom_col(stat2[stat2$Batch==1,],mapping=aes(x=Day,y=mean,fill=Strain,color=Strain,width=0.5),position = position_dodge())+
+  geom_errorbar(stat2[stat2$Batch==1,],mapping=aes(x=Day,ymin=mean-sd,ymax=mean+sd,color=Strain,width=0.3),position = position_dodge(width = 0.5),show.legend=FALSE)+
+  scale_fill_manual(values=c("grey16","grey66"))+
+  scale_color_manual(values=c("grey0","grey0"),)+
+  theme_classic()+
+  scale_y_continuous(expand = c(0,0),limits=c(0,65))+
+  xlab("Day")+
+  ylab("Sucrose productivity (mg/L/day)")+
+  geom_segment(aes(x=1.75,xend=2.25,y=57,yend=57))+
+  annotate("text", x = 2, y = 59, 
+           label = "*",
+           size = 16 / .pt, color = "#22292F")+
+  geom_segment(aes(x=2.75,xend=3.25,y=49,yend=49))+
+  annotate("text", x = 3, y = 51, 
+           label = "*",
+           size = 16 / .pt, color = "#22292F")+
+  geom_segment(aes(x=3.75,xend=4.25,y=18,yend=18))+
+  annotate("text", x = 4, y = 20, 
+           label = "*",
+           size = 16 / .pt, color = "#22292F")+
+  theme_classic()+
+  theme(legend.position = c(0.83, 0.96),
+        legend.title = element_text(size=5),
+        legend.text = element_text(size = 5),
+        legend.background = element_rect(size=.2),
+        legend.key.size = unit(0.5, "cm"),
+        axis.title = element_text(size=7,face = "bold"),
+        axis.text = element_text(size=7,face = "bold"))
+
+#ggsave(filename = file.path("/Users/jiangz49/OneDrive - University of Florida/Data_file/Zhenxiong_Shaun_Jiang/data/image","20240827-Extended-Fig1b.pdf"),plot = mSe1.validation, device = "pdf", width = 8, height = 6, units = "cm")
+```
+```{r}
+mSe2.validation <- 
+ggplot()+
+  geom_col(stat2[stat2$Batch==2,],mapping=aes(x=Day,y=mean,fill=Strain,color=Strain,width=0.5),position = position_dodge())+
+  geom_errorbar(stat2[stat2$Batch==2,],mapping=aes(x=Day,ymin=mean-sd,ymax=mean+sd,color=Strain,width=0.3),position = position_dodge(width = 0.5),show.legend=FALSE)+
+  scale_fill_manual(values=c("grey16","grey66"))+
+  scale_color_manual(values=c("grey0","grey0"),)+
+  theme_classic()+
+  scale_y_continuous(expand = c(0,0),limits=c(0,110))+
+  xlab("Day")+
+  ylab("Sucrose productivity (mg/L/day)")+
+  geom_segment(aes(x=0.75,xend=1.25,y=32,yend=32))+
+  annotate("text", x = 1, y = 34, 
+           label = "*",
+           size = 16 / .pt, color = "#22292F")+
+  geom_segment(aes(x=1.75,xend=2.25,y=58,yend=58))+
+  annotate("text", x = 2, y = 60, 
+           label = "***",
+           size = 16 / .pt, color = "#22292F")+
+  geom_segment(aes(x=2.75,xend=3.25,y=95,yend=95))+
+  annotate("text", x = 3, y = 97, 
+           label = "*",
+           size = 16 / .pt, color = "#22292F")+
+  geom_segment(aes(x=3.75,xend=4.25,y=63,yend=63))+
+  annotate("text", x = 4, y = 66, 
+           label = expression(italic("p")*"=0.1327"),
+           size = 8 / .pt, color = "#22292F")+
+  theme_classic()+
+  theme(legend.position = c(0.87, 0.96),
+        legend.title = element_text(size=5),
+        legend.text = element_text(size = 5),
+        legend.background = element_rect(size=.2),
+        legend.key.size = unit(0.5, "cm"),
+        axis.title = element_text(size=7,face = "bold"),
+        axis.text = element_text(size=7,face = "bold"))
+
+ggsave(filename = file.path("/Users/jiangz49/OneDrive - University of Florida/Data_file/Zhenxiong_Shaun_Jiang/data/image","20240827-Extended-Fig1d.pdf"),plot = mSe2.validation, device = "pdf", width = 8, height = 6, units = "cm")
+```
+
+

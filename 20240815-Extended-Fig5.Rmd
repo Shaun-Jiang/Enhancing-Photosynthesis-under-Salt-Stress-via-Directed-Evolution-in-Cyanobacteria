@@ -1,0 +1,171 @@
+---
+title: "20240815-Extended-Fig6"
+author: "Zhenxiong Jiang"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+##Personal laptop
+if (Sys.info()[4]=="jiangzhenxiongs-MacBook-Pro.local" | Sys.info()[4]=="ssrb-vpn1-6-239.vpn.ufl.edu"){ 
+  knitr::opts_knit$set(root.dir = "/Users/Zhenxiong/OneDrive - Duke University/Data_file/Zhenxiong_Shaun_Jiang/data")
+  source('/Users/Zhenxiong/OneDrive - Duke University/Data_file/Zhenxiong_Shaun_Jiang/scripts/loader_fxns.R')
+} ##Lab laptop 
+if (Sys.info()[4]=="PSNMBIWangX98-L1.local" | Sys.info()[4]=="sandbox.nerdc.ufl.edu" | Sys.info()[4]=="Zhenxiongs-MBP-M1-Pro.local"){
+  knitr::opts_knit$set(root.dir = "/Users/jiangz49/OneDrive - University of Florida/Data_file/Zhenxiong_Shaun_Jiang/data")
+  source('/Users/jiangz49/OneDrive - University of Florida/Data_file/Zhenxiong_Shaun_Jiang/scripts/loader_fxns.R')
+} 
+
+
+library(ggplot2)
+library(ggthemes)
+library(tidyr)
+library(dplyr)
+library(ggpubr)
+library(pracma)
+library(gridExtra)
+library(plotrix)
+```
+#BAM+FGM validation
+```{r}
+#Import data
+BAM.validation.dat <- read.csv("mSe3-raw/confirmation/BAM-validation.csv")
+#Filter to include only salt-induced growth, keep only relevant columns
+BAM.validation.dat <- BAM.validation.dat %>% filter(Salt.Induction==1) %>% mutate(OD730.adj=OD730_54h/OD730_0h) %>%
+select(Segregant, OD730.adj, OD730=OD730_54h, Batch)
+```
+```{r}
+BAM.candidate.data <- 
+BAM.validation.dat %>%
+                  mutate(Category = case_when(Segregant=="PCC7942" ~ "WT",
+                                              Segregant=="mSe3-342" | Segregant=="mSe3-470" | Segregant=="mSe3-1291" | Segregant=="mSe3-1804" ~ "BAM", 
+                                              Segregant=="mSe3-7265" | Segregant=="mSe3-8345" ~ "FGM",
+                                              Segregant=="UTEX2973" ~ "UTEX2973",
+                                              TRUE ~ "Others")) %>% 
+                  mutate(total.fold.change.mean=mean(BAM.validation.dat$OD730.adj)) %>% 
+                  mutate(batch.fold.change.mean=case_when(Batch==1 ~ mean(BAM.validation.dat[BAM.validation.dat$Batch==1,]$OD730.adj),
+                                        Batch==2 ~ mean(BAM.validation.dat[BAM.validation.dat$Batch==2,]$OD730.adj),
+                                        Batch==3 ~ mean(BAM.validation.dat[BAM.validation.dat$Batch==3,]$OD730.adj))) %>% 
+                  mutate(deblocked.fold.change=OD730.adj-batch.fold.change.mean+total.fold.change.mean)
+
+BAM.candidate.data$Segregant <- as.character(BAM.candidate.data$Segregant)
+```
+```{r}
+BAM.candidate.arranged <- BAM.candidate.data %>% group_by(Segregant) %>% mutate(mean=mean(deblocked.fold.change)) %>% arrange(mean)
+strain.ordered <- unique(BAM.candidate.arranged$Segregant)
+BAM.candidate.data <- BAM.candidate.data %>% mutate(Segregant=factor(Segregant,levels=strain.ordered))
+```
+
+```{r}
+deblocked.fold.change.plot <-
+ggplot(BAM.candidate.data[BAM.candidate.data$Segregant!="UTEX2973",],mapping=aes(x=factor(Segregant),y=deblocked.fold.change,fill=Category))+
+  geom_violin(width=0.7,scale = "width",trim = FALSE)+
+  geom_boxplot(width=0.2,fill="white",outlier.size = 0.1)+
+  scale_fill_manual(values=c('#B1C07A','#95BE7E','grey99',"grey50","grey66"))+
+  theme_classic()+
+  theme(axis.text.x = element_text(angle = 0, vjust = 0.5, hjust=0.5),
+        legend.position = "none",
+        axis.text=element_text(size=7),
+        axis.title=element_text(size=7))+
+  xlab("")+
+  ylab(bquote("Adjusted fold change"))+
+  coord_flip()+
+  #mSe3-342
+  annotate("text", x = 45, y = 6.5, 
+           label = "*",
+           size = 10 / .pt, color = "#22292F")+
+  #mSe3-470
+  annotate("text", x = 48, y = 6.5, 
+           label = "****",
+           size = 10 / .pt, color = "#22292F")+
+  #mSe3-1291
+  annotate("text", x = 49, y = 6.5, 
+           label = "****",
+           size = 10 / .pt, color = "#22292F")+
+  #mSe3-1804
+  annotate("text", x = 46, y = 6.5, 
+           label = "**",
+           size = 10 / .pt, color = "#22292F")+
+  #mSe3-7265
+  annotate("text", x = 47, y = 6.5, 
+           label = "***",
+           size = 10 / .pt, color = "#22292F")+
+  #mSe3-8345
+  annotate("text", x = 44, y = 6.5, 
+           label = "*",
+           size = 10 / .pt, color = "#22292F")
+
+ggsave("./image/20240815-Extended-Fig6a.pdf",plot=deblocked.fold.change.plot, device = "pdf", width = 8.5, height = 20, units = "cm")
+```
+#SPM validation
+```{r}
+#Import data
+SPM.validation.dat <- read.csv("mSe3-raw/confirmation/SPM-validation.csv")
+
+SPM.validation.dat$Batch <- c(rep(1,768),rep(2,768))
+
+SPM.validation.dat <- SPM.validation.dat %>% select(Segregant,OD730=OD730.54h,sucrose=Sucrose.Productivity,Batch)
+
+# Compute adjusted productivity based on previous model
+## Screening Data
+screen <- read.csv("mSe3-mSe0-compiled.csv", row.names=1, header=T, stringsAsFactors=F)
+mse0 <- filter(screen, Segregant.Type=="mSe0-normalization")
+mse0 <- mse0[mse0$Bleached==0,]
+## Model to Adjust Sucrose
+sfit <- lm(log(Sucrose.Productivity) ~ terminal.OD730, data=mse0)
+# Compute fitted values, then residuals
+SPM.validation.dat$fitted <- predict(sfit, newdata=data.frame(terminal.OD730=SPM.validation.dat$OD730))
+SPM.validation.dat$adj.sucrose <- log(SPM.validation.dat$sucrose) - SPM.validation.dat$fitted
+```
+```{r}
+SPM.final.candidate.dat <- SPM.validation.dat[(SPM.validation.dat$sucrose>0),] %>% mutate(Residual=0)
+SPM.final.candidate.dat <- SPM.final.candidate.dat[!is.na(SPM.final.candidate.dat$Segregant),]
+SPM.final.candidate.dat <- SPM.final.candidate.dat[SPM.final.candidate.dat$Segregant!="UTEX2973",]
+
+SPM.final.candidate.dat[SPM.final.candidate.dat$OD730<breakpoint,]$Residual <- log10(SPM.final.candidate.dat[SPM.final.candidate.dat$OD730<breakpoint,]$sucrose)-SPM.final.candidate.dat[SPM.final.candidate.dat$OD730<breakpoint,]$OD730*fit33$coefficients[2]-fit33$coefficients[1]
+SPM.final.candidate.dat[SPM.final.candidate.dat$OD730>breakpoint,]$Residual <- log10(SPM.final.candidate.dat[SPM.final.candidate.dat$OD730>breakpoint,]$sucrose)-SPM.final.candidate.dat[SPM.final.candidate.dat$OD730>breakpoint,]$OD730*fit34$coefficients[2]-fit34$coefficients[1]
+SPM.final.candidate.dat <- SPM.final.candidate.dat %>% 
+                  mutate(total.residual.mean=mean(SPM.final.candidate.dat$Residual)) %>% 
+                  mutate(batch.residual.mean=case_when(Batch==1 ~ mean(SPM.final.candidate.dat[SPM.final.candidate.dat$Batch==1,]$Residual),
+                                        Batch==2 ~ mean(SPM.final.candidate.dat[SPM.final.candidate.dat$Batch==2,]$Residual),
+                                        Batch==3 ~ mean(SPM.final.candidate.dat[SPM.final.candidate.dat$Batch==3,]$Residual))) %>% 
+                  mutate(deblocked.fold.change=Residual-batch.residual.mean+total.residual.mean) %>% 
+                  mutate(Category=case_when(Segregant=="PCC7942" ~ "WT",
+                                            Segregant=="mSe3-7803" ~ "SPM",
+                                            Segregant=="mSe3-7976" ~ "SPM",
+                                            TRUE ~ "Others"))
+
+SPM.final.candidate.dat$Segregant <- as.character(SPM.final.candidate.dat$Segregant)
+```
+```{r}
+SPM.final.candidate.arranged <- SPM.final.candidate.dat %>% group_by(Segregant) %>% mutate(mean=mean(deblocked.fold.change)) %>% arrange(mean)
+strain.ordered <- unique(SPM.final.candidate.arranged$Segregant)
+SPM.final.candidate.dat <- SPM.final.candidate.dat %>% mutate(Segregant=factor(Segregant,levels=strain.ordered))
+```
+
+Plotting
+```{r}
+deblocked.residual.plot <-
+ggplot(SPM.final.candidate.dat,mapping=aes(x=factor(Segregant),y=deblocked.fold.change,fill=Category),width=1)+
+  geom_violin(width=0.7, scale = "width",trim = FALSE)+
+  geom_boxplot(width=0.2,fill="white",outlier.size = 0.1)+
+  scale_fill_manual(values=c('grey99','#43BC97','grey50'))+
+  theme_classic()+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=0.5),
+        legend.position = "none",
+        axis.text=element_text(size=7),
+        axis.title=element_text(size=7))+
+  xlab("")+
+  ylab(bquote("Adjusted Residual"))+
+  coord_flip()+
+  #mSe3-7803
+  annotate("text", x = 88, y = 1.5, 
+           label = "*",
+           size = 10 / .pt, color = "#22292F")+
+  #mSe3-7976
+  annotate("text", x = 89, y = 1.5, 
+           label = "**",
+           size = 10 / .pt, color = "#22292F")
+
+ggsave("./image/20240815-Extended-Fig6b.pdf",plot=deblocked.residual.plot, device = "pdf", width = 8.5, height = 20, units = "cm")
+```
